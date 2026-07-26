@@ -102,6 +102,26 @@ export interface ConfigData {
   agentCashEnabled: boolean;
 }
 
+export interface SurvivalEvent {
+  timestamp: string;
+  type: string;
+  hpChange: number;
+  newHp: number;
+  note: string;
+}
+
+export interface SurvivalState {
+  health: number;
+  totalEarnedUsd: number;
+  level: number;
+  rankTitle: string;
+  paidApiUnlocked: boolean;
+  companyLaunchUnlocked: boolean;
+  isHibernating: boolean;
+  lastDecayTime: number;
+  events: SurvivalEvent[];
+}
+
 export interface AgentCashBalance {
   address: string;
   balance: string;
@@ -176,6 +196,10 @@ export const api = {
   getWalletCached: () => get<WalletInfo>("/api/wallet"),
   getAgentCashBalance: () => get<AgentCashBalance>("/api/agentcash-balance"),
   getEthPrice: () => get<{ price: number }>("/api/eth-price"),
+  getSurvival: () => get<SurvivalState>("/api/survival"),
+  reviveSurvival: () => post<SurvivalState>("/api/survival/revive"),
+  recordEarning: (amountUsd: number, title: string) =>
+    post<SurvivalState>("/api/survival/earn", { amountUsd, title }),
 
   // Setup
   getSetupStatus: () => get<SetupStatus>("/api/setup/status"),

@@ -1,12 +1,12 @@
 {
-  "name": "cashclaw-agent",
+  "name": "agentclaw-agent",
   "version": "0.1.0",
   "description": "Autonomous work agent for the moltlaunch marketplace",
   "license": "MIT",
-  "author": "Moltlaunch",
+  "author": "Aditya",
   "type": "module",
   "bin": {
-    "cashclaw": "./dist/index.js"
+    "agentclaw": "./dist/index.js"
   },
   "scripts": {
     "build": "tsup",

@@ -16,10 +16,17 @@ import { readTodayLog } from "./memory/log.js";
 import { getFeedbackStats, loadFeedback } from "./memory/feedback.js";
 import { loadKnowledge, getRelevantKnowledge, deleteKnowledge } from "./memory/knowledge.js";
 import { loadChat, appendChat, clearChat } from "./memory/chat.js";
+import {
+  applyHourlyDecay,
+  loadSurvivalState,
+  reviveAgent,
+  recordEarning,
+} from "./memory/survival.js";
 import { agentcashBalance } from "./tools/agentcash.js";
 import * as cli from "./moltlaunch/cli.js";
+import { startCategoryBListeners } from "./listeners/categoryB.js";
 
-const PORT = 3777;
+const PORT = Number(process.env.AGENTCLAW_PORT || process.env.CASHCLAW_PORT || process.env.PORT) || 3777;
 const MAX_BODY_BYTES = 1_048_576; // 1 MB
 
 type ServerMode = "setup" | "running";
@@ -31,6 +38,9 @@ interface ServerContext {
 }
 
 export async function startAgent(): Promise<http.Server> {
+  // Activate Category B Telegram & Discord listeners if configured
+  startCategoryBListeners();
+
   const configured = isConfigured();
   const config = configured ? loadConfig() : null;
 
@@ -224,6 +234,54 @@ function handleApi(
       if (req.method !== "POST") { json(res, { error: "POST only" }, 405); return; }
       clearChat();
       json(res, { ok: true });
+      break;
+
+    case "/api/survival":
+      json(res, applyHourlyDecay());
+      break;
+
+    case "/api/survival/revive":
+      if (req.method !== "POST") { json(res, { error: "POST only" }, 405); return; }
+      json(res, reviveAgent());
+      break;
+
+    case "/api/survival/earn":
+      if (req.method !== "POST") { json(res, { error: "POST only" }, 405); return; }
+      readBody(req).then((bodyStr) => {
+        try {
+          const body = parseJsonBody<{ amountUsd: number; title: string }>(bodyStr);
+          const updated = recordEarning(body.amountUsd || 10, body.title || "Freelance Task");
+          json(res, updated);
+        } catch {
+          json(res, { error: "Invalid body" }, 400);
+        }
+      });
+      break;
+
+    case "/api/webhooks/task":
+      if (req.method !== "POST") { json(res, { error: "POST only" }, 405); return; }
+      readBody(req).then(async (bodyStr) => {
+        try {
+          const body = parseJsonBody<{ task: string; budgetUsd?: number; platform?: string; clientEmail?: string }>(bodyStr);
+          if (!body.task) {
+            json(res, { error: "Missing 'task' in payload" }, 400);
+            return;
+          }
+          const platformName = body.platform || "Inbound Webhook";
+          const amount = body.budgetUsd || 15;
+          const updated = recordEarning(amount, `[${platformName}] ${body.task.slice(0, 40)}`);
+          json(res, {
+            ok: true,
+            status: "accepted",
+            platform: platformName,
+            task: body.task,
+            earningsLogged: amount,
+            survivalState: updated,
+          });
+        } catch (err) {
+          json(res, { error: err instanceof Error ? err.message : "Invalid webhook payload" }, 400);
+        }
+      });
       break;
 
     case "/api/wallet":

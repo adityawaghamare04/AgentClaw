@@ -85,7 +85,7 @@ export function App() {
           <div className="flex items-center gap-3">
             <ClawLogo />
             <div>
-              <h1 className="text-[15px] font-bold text-zinc-100 leading-none tracking-tight">CashClaw</h1>
+              <h1 className="text-[15px] font-bold text-zinc-100 leading-none tracking-tight">AgentClaw</h1>
               <p className="text-[11px] text-zinc-600 leading-none mt-1">Autonomous Agent</p>
             </div>
           </div>

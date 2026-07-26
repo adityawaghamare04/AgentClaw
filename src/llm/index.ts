@@ -236,6 +236,11 @@ export function createLLMProvider(config: LLMConfig): LLMProvider {
         config,
         "https://openrouter.ai/api/v1",
       );
+    case "gemini":
+      return createOpenAICompatibleProvider(
+        config,
+        "https://generativelanguage.googleapis.com/v1beta/openai",
+      );
     default:
       throw new Error(`Unknown LLM provider: ${config.provider}`);
   }

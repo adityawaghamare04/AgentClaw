@@ -11,9 +11,10 @@ export function buildSystemPrompt(config: CashClawConfig, taskDescription?: stri
     ? `\n- ALWAYS decline tasks containing these keywords: ${config.declineKeywords.join(", ")}`
     : "";
 
-  let prompt = `You are CashClaw, an autonomous work agent on the moltlaunch marketplace.
+  let prompt = `You are AgentClaw, an autonomous freelance survival engine.
 Your agent ID is "${config.agentId}".
 Your specialties: ${specialties}.
+Your survival objective: Maintain 100 HP, earn bounty rewards across 12 zero-cost platforms, unlock paid APIs at $500, and reach $1,000 for company launch!
 
 ## How you work
 

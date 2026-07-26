@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { api, type StatusData, type ActivityEvent, type StatsData, type KnowledgeEntry, type FeedbackEntry, type WalletInfo, type AgentCashBalance } from "../lib/api.js";
+import { api, type StatusData, type ActivityEvent, type StatsData, type KnowledgeEntry, type FeedbackEntry, type WalletInfo, type AgentCashBalance, type SurvivalState } from "../lib/api.js";
 import { ethToUsd } from "../lib/ethPrice.js";
 
 function formatUptime(ms: number): string {
@@ -84,6 +84,7 @@ export function Dashboard() {
   const [agentCashBalance, setAgentCashBalance] = useState<AgentCashBalance | null>(null);
   const [agentCashEnabled, setAgentCashEnabled] = useState(false);
   const [ethPrice, setEthPrice] = useState<number>(0);
+  const [survival, setSurvival] = useState<SurvivalState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [eventFilter, setEventFilter] = useState<string | null>(null);
   const [intelTab, setIntelTab] = useState<IntelTab>("knowledge");
@@ -94,7 +95,7 @@ export function Dashboard() {
 
     async function poll() {
       try {
-        const [s, t, st, w, k, f, cfg] = await Promise.all([
+        const [s, t, st, w, k, f, cfg, surv] = await Promise.all([
           api.getStatus(),
           api.getTasks(),
           api.getStats(),
@@ -102,6 +103,7 @@ export function Dashboard() {
           api.getKnowledge().catch(() => ({ entries: [] })),
           api.getFeedback().catch(() => ({ entries: [] })),
           api.getConfig().catch(() => null),
+          api.getSurvival().catch(() => null),
         ]);
         if (!active) return;
         setStatus(s);
@@ -110,6 +112,7 @@ export function Dashboard() {
         setWallet(w);
         setKnowledge(k.entries);
         setFeedback(f.entries);
+        setSurvival(surv);
         setError(null);
 
         const cashEnabled = cfg?.agentCashEnabled ?? false;
@@ -160,7 +163,7 @@ export function Dashboard() {
       <div className="text-center py-32">
         <p className="text-xl text-zinc-300 mb-2">Connection Lost</p>
         <p className="text-sm text-zinc-600 mb-6">{error}</p>
-        <p className="text-sm text-zinc-600">Run <code className="text-zinc-400 bg-zinc-800 px-2 py-0.5 rounded-sm font-mono text-xs">cashclaw start</code> to reconnect</p>
+        <p className="text-sm text-zinc-600">Run <code className="text-zinc-400 bg-zinc-800 px-2 py-0.5 rounded-sm font-mono text-xs">agentclaw start</code> to reconnect</p>
       </div>
     );
   }
@@ -225,6 +228,70 @@ export function Dashboard() {
           </button>
         </div>
       </div>
+
+      {/* Survival Gauge & Level Roadmap */}
+      {survival && (
+        <div className="card p-5 border border-zinc-700/60 bg-gradient-to-r from-zinc-900/90 via-zinc-900 to-zinc-950">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+            <div>
+              <div className="flex items-center gap-3 mb-1">
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 font-mono">
+                  LEVEL {survival.level}
+                </span>
+                <h2 className="text-lg font-bold text-zinc-100 font-mono">{survival.rankTitle}</h2>
+                {survival.paidApiUnlocked && (
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    🔑 PAID API UNLOCKED
+                  </span>
+                )}
+                {survival.companyLaunchUnlocked && (
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-violet-500/20 text-violet-300 border border-violet-500/30">
+                    🚀 COMPANY LAUNCHED
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-zinc-400 font-mono">
+                Total Revenue: <span className="text-emerald-400 font-bold">${survival.totalEarnedUsd.toFixed(2)}</span>
+                {survival.totalEarnedUsd < 500 && ` • Next Unlock ($500 Paid API): $${(500 - survival.totalEarnedUsd).toFixed(2)} remaining`}
+                {survival.totalEarnedUsd >= 500 && survival.totalEarnedUsd < 1000 && ` • Next Unlock ($1,000 Company Launch): $${(1000 - survival.totalEarnedUsd).toFixed(2)} remaining`}
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              {survival.isHibernating && (
+                <button
+                  onClick={() => {
+                    api.reviveSurvival().then(setSurvival).catch(() => {});
+                  }}
+                  className="px-3 py-1.5 rounded text-xs font-bold bg-red-600 hover:bg-red-500 text-white animate-pulse"
+                >
+                  ⚡ REVIVE AGENT (50 HP)
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* HP Health Gauge Bar */}
+          <div className="space-y-1.5">
+            <div className="flex justify-between items-center text-xs font-mono">
+              <span className="text-zinc-400 flex items-center gap-1.5">
+                🩸 SURVIVAL HEALTH (HP)
+                {survival.health <= 20 && <span className="text-red-400 font-bold animate-pulse">(CRITICAL)</span>}
+              </span>
+              <span className={`font-bold ${survival.health >= 70 ? "text-emerald-400" : survival.health >= 30 ? "text-amber-400" : "text-red-400"}`}>
+                {survival.health} / 100 HP
+              </span>
+            </div>
+            <div className="w-full h-3 bg-zinc-800 rounded-full overflow-hidden p-0.5 border border-zinc-700/50">
+              <div
+                className={`h-full rounded-full transition-all duration-500 ${
+                  survival.health >= 70 ? "bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.5)]" : survival.health >= 30 ? "bg-amber-500 shadow-[0_0_12px_rgba(245,158,11,0.5)]" : "bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.5)]"
+                }`}
+                style={{ width: `${Math.max(4, survival.health)}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Stats Row 1 */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

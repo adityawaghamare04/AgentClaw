@@ -7,6 +7,7 @@ import { runAgentLoop, type LoopResult } from "./loop/index.js";
 import { runStudySession } from "./loop/study.js";
 import { storeFeedback } from "./memory/feedback.js";
 import { appendLog } from "./memory/log.js";
+import { applyHourlyDecay } from "./memory/survival.js";
 
 export interface HeartbeatState {
   running: boolean;
@@ -235,6 +236,7 @@ export function createHeartbeat(
 
   async function tick() {
     try {
+      applyHourlyDecay();
       const tasks = await cli.getInbox(config.agentId);
       state.lastPoll = Date.now();
       state.totalPolls++;

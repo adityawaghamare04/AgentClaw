@@ -1,0 +1,22 @@
+# Koyeb App Deployment Specification for CashClaw 24/7 Agent
+type: api/v1
+name: cashclaw-agent
+
+services:
+  - name: cashclaw-web
+    type: web
+    image: node:20-alpine
+    builder: docker
+    dockerfile: Dockerfile
+    instance_type: free
+    ports:
+      - port: 3777
+        path: /
+    routes:
+      - path: /
+        port: 3777
+    env:
+      - key: PORT
+        value: "3777"
+      - key: NODE_ENV
+        value: "production"

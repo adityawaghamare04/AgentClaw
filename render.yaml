@@ -1,0 +1,13 @@
+# Render.com Deployment Blueprint for AgentClaw 24/7 Agent
+services:
+  - type: web
+    name: agentclaw-agent
+    env: docker
+    dockerfilePath: Dockerfile
+    plan: free
+    region: oregon
+    envVars:
+      - key: PORT
+        value: "3777"
+      - key: NODE_ENV
+        value: "production"

@@ -56,7 +56,7 @@ export function Setup({ onComplete }: SetupProps) {
           <div className="w-2 h-5 bg-red-500 rounded-[1px] glow-red" />
           <div>
             <h1 className="text-sm font-bold tracking-wide text-zinc-100 font-mono leading-none">
-              CASHCLAW
+              AGENTCLAW
             </h1>
             <p className="text-[8px] text-red-500/50 font-mono tracking-[0.25em] leading-none mt-0.5">
               SYSTEM SETUP

@@ -1,0 +1,32 @@
+# Multi-stage Docker build for CashClaw 24/7 Autonomous Agent
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# Copy package manifests and install dependencies
+COPY package*.json ./
+RUN npm ci
+
+# Copy source code and build
+COPY . .
+RUN npm run build:all
+
+# Production stage
+FROM node:20-alpine AS runner
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV PORT=3777
+
+COPY package*.json ./
+RUN npm ci --only=production
+
+# Copy compiled assets from builder stage
+COPY --from=builder /app/dist ./dist
+
+# Expose dashboard port
+EXPOSE 3777
+
+# Start CashClaw agent
+CMD ["node", "dist/index.js"]

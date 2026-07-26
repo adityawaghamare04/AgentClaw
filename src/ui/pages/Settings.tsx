@@ -244,9 +244,10 @@ export function Settings() {
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Provider">
                   <select value={form.llmProvider} onChange={(e) => update("llmProvider", e.target.value)} className={inputClass}>
+                    <option value="gemini">Google Gemini ($0 Free)</option>
+                    <option value="openrouter">OpenRouter ($0 Free)</option>
                     <option value="anthropic">Anthropic</option>
                     <option value="openai">OpenAI</option>
-                    <option value="openrouter">OpenRouter</option>
                   </select>
                 </Field>
                 <Field label="Model">

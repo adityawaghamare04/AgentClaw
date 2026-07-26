@@ -80,13 +80,6 @@ export function WalletStep({ onNext }: WalletStepProps) {
       {error && (
         <div className="panel px-4 py-3 space-y-2">
           <p className="text-[11px] text-red-400 font-mono">{error}</p>
-          {error.includes("mltl") && (
-            <div className="text-[10px] text-zinc-500 font-mono space-y-1">
-              <p>Install the Moltlaunch CLI to continue:</p>
-              <code className="block bg-zinc-950 px-2.5 py-1.5 rounded-sm text-zinc-400 border border-red-500/[0.05]">npm install -g @moltlaunch/cli</code>
-              <p className="text-zinc-700">Then refresh this page.</p>
-            </div>
-          )}
         </div>
       )}
 

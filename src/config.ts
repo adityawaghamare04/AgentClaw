@@ -3,7 +3,7 @@ import path from "node:path";
 import os from "node:os";
 
 export interface LLMConfig {
-  provider: "anthropic" | "openai" | "openrouter";
+  provider: "anthropic" | "openai" | "openrouter" | "gemini";
   model: string;
   apiKey: string;
 }
@@ -42,8 +42,8 @@ export interface CashClawConfig {
   agentCashEnabled: boolean;
 }
 
-const CONFIG_DIR = path.join(os.homedir(), ".cashclaw");
-const CONFIG_PATH = path.join(CONFIG_DIR, "cashclaw.json");
+const CONFIG_DIR = path.join(os.homedir(), ".agentclaw");
+const CONFIG_PATH = path.join(CONFIG_DIR, "agentclaw.json");
 
 const DEFAULT_CONFIG: Omit<CashClawConfig, "agentId" | "llm"> = {
   polling: { intervalMs: 30000, urgentIntervalMs: 10000 },
@@ -58,23 +58,96 @@ const DEFAULT_CONFIG: Omit<CashClawConfig, "agentId" | "llm"> = {
   agentCashEnabled: false,
 };
 
-export function loadConfig(): CashClawConfig | null {
-  if (!fs.existsSync(CONFIG_PATH)) return null;
-  try {
-    const raw = fs.readFileSync(CONFIG_PATH, "utf-8");
-    const parsed = JSON.parse(raw) as CashClawConfig;
-    if (!parsed || typeof parsed !== "object") return null;
-    return parsed;
-  } catch {
-    return null;
+export function loadEnvFile(): void {
+  const envPaths = [
+    path.join(process.cwd(), ".env"),
+    path.join(CONFIG_DIR, ".env"),
+  ];
+
+  for (const envPath of envPaths) {
+    if (fs.existsSync(envPath)) {
+      try {
+        const content = fs.readFileSync(envPath, "utf-8");
+        for (const line of content.split("\n")) {
+          const trimmed = line.trim();
+          if (!trimmed || trimmed.startsWith("#")) continue;
+          const eqIdx = trimmed.indexOf("=");
+          if (eqIdx > 0) {
+            const key = trimmed.slice(0, eqIdx).trim();
+            let val = trimmed.slice(eqIdx + 1).trim();
+            if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+              val = val.slice(1, -1);
+            }
+            if (!process.env[key]) {
+              process.env[key] = val;
+            }
+          }
+        }
+      } catch {
+        // ignore read error
+      }
+    }
   }
+}
+
+// Auto load .env at start
+loadEnvFile();
+
+export function getApiKeyFromEnv(provider: LLMConfig["provider"]): string {
+  switch (provider) {
+    case "gemini": return process.env.GEMINI_API_KEY || "";
+    case "openrouter": return process.env.OPENROUTER_API_KEY || "";
+    case "openai": return process.env.OPENAI_API_KEY || "";
+    case "anthropic": return process.env.ANTHROPIC_API_KEY || "";
+    default: return "";
+  }
+}
+
+export function maskApiKey(key: string): string {
+  if (!key) return "";
+  if (key.length <= 8) return "********";
+  return `${key.slice(0, 4)}...${key.slice(-4)}`;
+}
+
+export function loadConfig(): CashClawConfig | null {
+  loadEnvFile();
+  let parsed: CashClawConfig | null = null;
+  if (fs.existsSync(CONFIG_PATH)) {
+    try {
+      const raw = fs.readFileSync(CONFIG_PATH, "utf-8");
+      parsed = JSON.parse(raw) as CashClawConfig;
+    } catch {
+      // ignore
+    }
+  }
+
+  const provider = (process.env.LLM_PROVIDER as LLMConfig["provider"]) || parsed?.llm?.provider || "gemini";
+  const envKey = getApiKeyFromEnv(provider);
+
+  const config: CashClawConfig = {
+    ...DEFAULT_CONFIG,
+    agentId: parsed?.agentId || "agentclaw_agent",
+    llm: {
+      provider,
+      model: process.env.LLM_MODEL || parsed?.llm?.model || "gemini-2.5-flash",
+      apiKey: envKey || parsed?.llm?.apiKey || "",
+    },
+    ...parsed,
+  };
+
+  // Override key from backend .env if set
+  if (envKey) {
+    config.llm.apiKey = envKey;
+  }
+
+  return config;
 }
 
 export function requireConfig(): CashClawConfig {
   const config = loadConfig();
   if (!config) {
     throw new Error(
-      "No config found. Run `cashclaw init` first.",
+      "No config found. Ensure .env or ~/.cashclaw/cashclaw.json is configured.",
     );
   }
   return config;
@@ -95,11 +168,12 @@ export function isConfigured(): boolean {
 
 /** Save partial config fields, merging with existing config or defaults */
 export function savePartialConfig(partial: Partial<CashClawConfig>): CashClawConfig {
-  const existing = loadConfig();
-  const config = {
+  const existing = loadConfig() || {
     ...DEFAULT_CONFIG,
-    agentId: "",
-    llm: { provider: "anthropic" as const, model: "", apiKey: "" },
+    agentId: "cashclaw_agent",
+    llm: { provider: "gemini" as const, model: "gemini-2.5-pro", apiKey: "" },
+  };
+  const config = {
     ...existing,
     ...partial,
   };
@@ -117,7 +191,8 @@ export function initConfig(opts: {
   const modelDefaults: Record<LLMConfig["provider"], string> = {
     anthropic: "claude-sonnet-4-20250514",
     openai: "gpt-4o",
-    openrouter: "anthropic/claude-sonnet-4-20250514",
+    openrouter: "google/gemini-2.5-pro",
+    gemini: "gemini-2.5-pro",
   };
 
   const config: CashClawConfig = {
@@ -126,7 +201,7 @@ export function initConfig(opts: {
     llm: {
       provider: opts.provider,
       model: opts.model ?? modelDefaults[opts.provider],
-      apiKey: opts.apiKey,
+      apiKey: opts.apiKey || getApiKeyFromEnv(opts.provider),
     },
     specialties: opts.specialties ?? [],
   };
