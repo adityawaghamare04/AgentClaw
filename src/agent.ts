@@ -132,7 +132,7 @@ function parseJsonBody<T>(raw: string): T {
 }
 
 function isAuthorized(req: http.IncomingMessage): boolean {
-  const secret = process.env.ADMIN_SECRET;
+  const secret = process.env.ADMIN_PASSWORD || process.env.ADMIN_SECRET;
   if (!secret) return true;
   const keyHeader = req.headers["x-admin-key"];
   const authHeader = req.headers["authorization"];
@@ -149,6 +149,31 @@ function handleApi(
   // Setup endpoints — available in both modes
   if (pathname.startsWith("/api/setup/")) {
     handleSetupApi(pathname, req, res, ctx);
+    return;
+  }
+
+  if (pathname === "/api/auth/login") {
+    if (req.method !== "POST") { json(res, { error: "POST only" }, 405); return; }
+    readBody(req).then((bodyStr) => {
+      try {
+        const body = parseJsonBody<{ password?: string }>(bodyStr);
+        const pass = body.password || "";
+        const expected = process.env.ADMIN_PASSWORD || process.env.ADMIN_SECRET;
+
+        if (!expected) {
+          json(res, { ok: true, message: "Authenticated" });
+          return;
+        }
+
+        if (pass === expected) {
+          json(res, { ok: true, message: "Authenticated" });
+        } else {
+          json(res, { error: "Invalid admin password" }, 401);
+        }
+      } catch {
+        json(res, { error: "Invalid body" }, 400);
+      }
+    });
     return;
   }
 

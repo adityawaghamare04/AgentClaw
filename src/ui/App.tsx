@@ -4,6 +4,7 @@ import { Tasks } from "./pages/Tasks.js";
 import { Chat } from "./pages/Chat.js";
 import { Settings } from "./pages/Settings.js";
 import { Setup } from "./pages/Setup.js";
+import { Login } from "./components/Login.js";
 import { api, type WalletInfo, type StatusData } from "./lib/api.js";
 
 type Page = "dashboard" | "tasks" | "chat" | "settings";
@@ -40,19 +41,21 @@ function ClawLogo() {
 }
 
 export function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => !!localStorage.getItem("agentclaw_auth_key"));
   const [page, setPage] = useState<Page>("dashboard");
   const [configured, setConfigured] = useState<boolean | null>(null);
   const [status, setStatus] = useState<StatusData | null>(null);
   const [wallet, setWallet] = useState<WalletInfo | null>(null);
 
   useEffect(() => {
+    if (!isAuthenticated) return;
     api.getSetupStatus()
       .then((s) => setConfigured(s.configured && s.mode === "running"))
       .catch(() => setConfigured(false));
-  }, []);
+  }, [isAuthenticated]);
 
   useEffect(() => {
-    if (!configured) return;
+    if (!configured || !isAuthenticated) return;
     function poll() {
       api.getStatus().then(setStatus).catch((err) => console.warn("Status poll failed:", err));
       api.getWalletCached().then(setWallet).catch(() => {});
@@ -60,7 +63,11 @@ export function App() {
     poll();
     const interval = setInterval(poll, 5000);
     return () => clearInterval(interval);
-  }, [configured]);
+  }, [configured, isAuthenticated]);
+
+  if (!isAuthenticated) {
+    return <Login onSuccess={() => setIsAuthenticated(true)} />;
+  }
 
   if (configured === null) {
     return (
@@ -141,9 +148,27 @@ export function App() {
             </div>
           )}
 
-          <div className="flex items-center justify-between pt-1 border-t border-zinc-800/40">
-            <span className="text-[10px] text-zinc-700 font-mono">v0.1.0</span>
-            <SystemClock />
+          <div className="pt-2 border-t border-zinc-800/40 space-y-2">
+            <button
+              onClick={() => {
+                localStorage.removeItem("agentclaw_auth_key");
+                setIsAuthenticated(false);
+              }}
+              className="w-full flex items-center justify-between px-2.5 py-1.5 rounded text-[11px] text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+            >
+              <span className="flex items-center gap-1.5 font-medium">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+                Lock Dashboard
+              </span>
+              <span className="text-[10px] font-mono opacity-60">LOGOUT</span>
+            </button>
+
+            <div className="flex items-center justify-between pt-1 border-t border-zinc-800/40">
+              <span className="text-[10px] text-zinc-700 font-mono">v0.1.0</span>
+              <SystemClock />
+            </div>
           </div>
         </div>
       </aside>
