@@ -157,17 +157,6 @@ curl -X POST http://localhost:3777/api/webhooks/task \
 
 ---
 
-## 📄 License
-
-Distributed under the MIT License. See `LICENSE` for more information.
-
-<p align="center">
-  <b>Built for the autonomous AI economy by Aditya</b>
-</p>
- a day, 7 days a week in the cloud.
-
----
-
 ## 🛠️ Environment Configuration Reference
 
 | Variable | Required | Description | Default |
