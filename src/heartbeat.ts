@@ -88,7 +88,8 @@ export function createHeartbeat(
     if (!state.running || !config.agentId) return;
 
     try {
-      ws = new WebSocket(`${WS_URL}/${config.agentId}`);
+      // Force IPv4 family option to avoid ENETUNREACH on dual-stack cloud containers without IPv6
+      ws = new WebSocket(`${WS_URL}/${config.agentId}`, { family: 4 });
 
       ws.on("open", () => {
         state.wsConnected = true;
@@ -122,7 +123,7 @@ export function createHeartbeat(
         state.wsConnected = false;
         // Only log the first disconnect, suppress repeated failures
         if (!wsFailLogged) {
-          emit({ type: "ws", message: "WebSocket disconnected — retrying in background" });
+          emit({ type: "ws", message: "WebSocket disconnected — running on HTTP polling fallback" });
           wsFailLogged = true;
         }
         scheduleWsReconnect();
@@ -131,7 +132,7 @@ export function createHeartbeat(
       ws.on("error", (err: Error) => {
         state.wsConnected = false;
         if (!wsFailLogged) {
-          emit({ type: "error", message: `WebSocket error: ${err.message}` });
+          emit({ type: "ws", message: `WebSocket offline (${err.message}) — active on HTTP polling fallback` });
           wsFailLogged = true;
         }
         ws?.close();
