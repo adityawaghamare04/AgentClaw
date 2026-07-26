@@ -131,6 +131,15 @@ function parseJsonBody<T>(raw: string): T {
   }
 }
 
+function isAuthorized(req: http.IncomingMessage): boolean {
+  const secret = process.env.ADMIN_SECRET;
+  if (!secret) return true;
+  const keyHeader = req.headers["x-admin-key"];
+  const authHeader = req.headers["authorization"];
+  const bearerToken = typeof authHeader === "string" && authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  return keyHeader === secret || bearerToken === secret;
+}
+
 function handleApi(
   pathname: string,
   req: http.IncomingMessage,
@@ -196,6 +205,7 @@ function handleApi(
 
     case "/api/knowledge/delete":
       if (req.method !== "POST") { json(res, { error: "POST only" }, 405); return; }
+      if (!isAuthorized(req)) { json(res, { error: "Unauthorized" }, 401); return; }
       handleKnowledgeDelete(req, res);
       break;
 
@@ -205,18 +215,21 @@ function handleApi(
 
     case "/api/stop":
       if (req.method !== "POST") { json(res, { error: "POST only" }, 405); return; }
+      if (!isAuthorized(req)) { json(res, { error: "Unauthorized — missing or invalid ADMIN_SECRET" }, 401); return; }
       ctx.heartbeat.stop();
       json(res, { ok: true, running: false });
       break;
 
     case "/api/start":
       if (req.method !== "POST") { json(res, { error: "POST only" }, 405); return; }
+      if (!isAuthorized(req)) { json(res, { error: "Unauthorized — missing or invalid ADMIN_SECRET" }, 401); return; }
       ctx.heartbeat.start();
       json(res, { ok: true, running: true });
       break;
 
     case "/api/config-update":
       if (req.method !== "POST") { json(res, { error: "POST only" }, 405); return; }
+      if (!isAuthorized(req)) { json(res, { error: "Unauthorized — missing or invalid ADMIN_SECRET" }, 401); return; }
       handleConfigUpdate(req, res, ctx);
       break;
 
