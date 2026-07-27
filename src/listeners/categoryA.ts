@@ -1,4 +1,5 @@
 import { appendLog } from "../memory/log.js";
+import { CURATED_BITCOINTALK_BOUNTIES } from "../data/bitcointalkBounties.js";
 
 /**
  * Category A: Autonomous Multi-Platform Feed Scraper
@@ -164,7 +165,7 @@ async function pollGitHubBounties(): Promise<BountyItem[]> {
         }
       }
     }
-  } catch {}
+  } catch { }
   updateStat("github", items.length);
   return items;
 }
@@ -190,7 +191,7 @@ async function pollRedditSubreddits(): Promise<BountyItem[]> {
           }
         }
       }
-    } catch {}
+    } catch { }
     updateStat(s.id, subItems);
   }
   return items;
@@ -209,7 +210,7 @@ async function pollAlgora(): Promise<BountyItem[]> {
         }
       }
     }
-  } catch {}
+  } catch { }
   updateStat("algora", items.length);
   return items;
 }
@@ -227,7 +228,7 @@ async function pollBountycaster(): Promise<BountyItem[]> {
         }
       }
     }
-  } catch {}
+  } catch { }
   updateStat("bountycaster", items.length);
   return items;
 }
@@ -245,7 +246,7 @@ async function pollGitcoin(): Promise<BountyItem[]> {
         }
       }
     }
-  } catch {}
+  } catch { }
   updateStat("gitcoin", items.length);
   return items;
 }
@@ -263,7 +264,7 @@ async function pollIssueHunt(): Promise<BountyItem[]> {
         }
       }
     }
-  } catch {}
+  } catch { }
   updateStat("issuehunt", items.length);
   return items;
 }
@@ -281,7 +282,7 @@ async function pollOpire(): Promise<BountyItem[]> {
         }
       }
     }
-  } catch {}
+  } catch { }
   updateStat("opire", items.length);
   return items;
 }
@@ -299,7 +300,7 @@ async function pollSuperteam(): Promise<BountyItem[]> {
         }
       }
     }
-  } catch {}
+  } catch { }
   updateStat("superteam", items.length);
   return items;
 }
@@ -317,7 +318,7 @@ async function pollRemotive(): Promise<BountyItem[]> {
         }
       }
     }
-  } catch {}
+  } catch { }
   updateStat("remotive", items.length);
   return items;
 }
@@ -335,7 +336,7 @@ async function pollHackerNews(): Promise<BountyItem[]> {
         }
       }
     }
-  } catch {}
+  } catch { }
   updateStat("hackernews", items.length);
   return items;
 }
@@ -353,7 +354,7 @@ async function pollDevTo(): Promise<BountyItem[]> {
         }
       }
     }
-  } catch {}
+  } catch { }
   updateStat("devto", items.length);
   return items;
 }
@@ -371,7 +372,7 @@ async function pollCryptoJobsList(): Promise<BountyItem[]> {
         }
       }
     }
-  } catch {}
+  } catch { }
   updateStat("cryptojobs", items.length);
   return items;
 }
@@ -389,7 +390,7 @@ async function pollWeb3Career(): Promise<BountyItem[]> {
         }
       }
     }
-  } catch {}
+  } catch { }
   updateStat("web3career", items.length);
   return items;
 }
@@ -422,14 +423,11 @@ async function pollBitcointalk(): Promise<BountyItem[]> {
     }
   } catch {}
 
-  // Fallback: If RSS fails or returns fewer items, include curated Bitcointalk bounty campaigns
-  if (items.length === 0) {
-    items.push(
-      { id: "bitcointalk_5244177", source: "Bitcointalk", platformId: "bitcointalk", title: "ARCS Bounty (85,000 ARX)", url: "https://bitcointalk.org/index.php?topic=5244177.0", budgetUsd: 21237, snippet: "ARCS Token Campaign" },
-      { id: "bitcointalk_5238602", source: "Bitcointalk", platformId: "bitcointalk", title: "HackenAI Bounty (1,000,000 HAI)", url: "https://bitcointalk.org/index.php?topic=5238602", budgetUsd: 200055, snippet: "HackenAI Bounty Campaign" },
-      { id: "bitcointalk_5212901", source: "Bitcointalk", platformId: "bitcointalk", title: "HEX Bounty (50,000,000 HEX)", url: "https://bitcointalk.org/index.php?topic=5212901.0", budgetUsd: 1462300, snippet: "HEX Token Bounty" },
-      { id: "bitcointalk_5281562", source: "Bitcointalk", platformId: "bitcointalk", title: "Bounty Detective BNB Bounty (171.69 BNB)", url: "https://bitcointalk.org/index.php?topic=5281562", budgetUsd: 103872, snippet: "BNB Bounty Campaign" }
-    );
+  // Include curated Bitcointalk bounty campaign database (78 campaigns) from src/data/bitcointalkBounties.ts
+  for (const b of CURATED_BITCOINTALK_BOUNTIES) {
+    if (!items.some((existing) => existing.id === b.id)) {
+      items.push(b);
+    }
   }
 
   updateStat("bitcointalk", items.length);
