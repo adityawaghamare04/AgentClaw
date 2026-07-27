@@ -25,6 +25,7 @@ import {
 import { agentcashBalance } from "./tools/agentcash.js";
 import * as cli from "./moltlaunch/cli.js";
 import { startCategoryBListeners } from "./listeners/categoryB.js";
+import { startCategoryAListeners } from "./listeners/categoryA.js";
 
 const PORT = Number(process.env.AGENTCLAW_PORT || process.env.CASHCLAW_PORT || process.env.PORT) || 3777;
 const MAX_BODY_BYTES = 1_048_576; // 1 MB
@@ -38,6 +39,9 @@ interface ServerContext {
 }
 
 export async function startAgent(): Promise<http.Server> {
+  // Activate Category A Autonomous Public Feed Scrapers (GitHub, Reddit, Bounties)
+  startCategoryAListeners();
+
   // Activate Category B Telegram & Discord listeners if configured
   startCategoryBListeners();
 
