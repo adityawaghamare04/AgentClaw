@@ -1,7 +1,7 @@
 # 🐾 AgentClaw: Autonomous 24/7 Freelance & Bounty Engine
 
 <p align="center">
-  <a href="https://github.com/moltlaunch/agentclaw"><img src="https://img.shields.io/badge/Node.js-v20%2B-green.svg" alt="Node.js" /></a>
+  <a href="https://github.com/adityawaghamare04/AgentClaw"><img src="https://img.shields.io/badge/Node.js-v20%2B-green.svg" alt="Node.js" /></a>
   <a href="https://typescriptlang.org"><img src="https://img.shields.io/badge/TypeScript-5.7-blue.svg" alt="TypeScript" /></a>
   <a href="https://ai.google.dev"><img src="https://img.shields.io/badge/LLM-Gemini%202.5%20Flash%20%2F%20Pro-orange.svg" alt="Gemini" /></a>
   <a href="https://render.com"><img src="https://img.shields.io/badge/Deployment-Render.com%2024%2F7-purple.svg" alt="Render" /></a>
@@ -70,7 +70,7 @@ Unlike simple scripts, AgentClaw features a **Gamified HP Survival System**: it 
 
 ### 1. Clone & Install Dependencies
 ```bash
-git clone https://github.com/moltlaunch/agentclaw.git
+git clone https://github.com/adityawaghamare04/AgentClaw.git
 cd agentclaw
 npm install
 ```
