@@ -41,6 +41,9 @@ export async function startAgent(): Promise<http.Server> {
   // Activate Category B Telegram & Discord listeners if configured
   startCategoryBListeners();
 
+  // Start 24/7 Cloud Keep-Alive pinger to prevent Render sleep mode
+  startKeepAlive();
+
   const configured = isConfigured();
   const config = configured ? loadConfig() : null;
 
@@ -67,6 +70,25 @@ export async function startAgent(): Promise<http.Server> {
 
   const server = createServer(ctx);
   return server;
+}
+
+function startKeepAlive() {
+  const externalUrl = process.env.RENDER_EXTERNAL_URL || process.env.PUBLIC_URL || "https://agentclaw-fn13.onrender.com";
+  const pingIntervalMs = 8 * 60 * 1000; // Ping every 8 minutes (Render sleeps at 15m)
+
+  console.log(`[Keep-Alive] 📡 24/7 Cloud Keep-Alive Pinger active (${externalUrl})`);
+
+  setTimeout(() => {
+    fetch(`${externalUrl}/api/status`)
+      .then(() => console.log(`[Keep-Alive] ⚡ Initial ping successful`))
+      .catch(() => {});
+  }, 30000);
+
+  setInterval(() => {
+    fetch(`${externalUrl}/api/status`)
+      .then(() => console.log(`[Keep-Alive] ⚡ 24/7 Keep-Alive ping sent to ${externalUrl}`))
+      .catch((err) => console.warn(`[Keep-Alive] Ping note:`, err.message));
+  }, pingIntervalMs);
 }
 
 function createServer(ctx: ServerContext): http.Server {
