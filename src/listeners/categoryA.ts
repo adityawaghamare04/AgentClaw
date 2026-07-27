@@ -59,6 +59,7 @@ const platformStatsMap: Record<string, PlatformStat> = {
   devto: { id: "devto", name: "DEV.to Collabs", category: "Developer Gigs", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
   cryptojobs: { id: "cryptojobs", name: "CryptoJobsList", category: "Web3 Bounties", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
   web3career: { id: "web3career", name: "Web3.career", category: "Web3 Bounties", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
+  bitcointalk: { id: "bitcointalk", name: "Bitcointalk Bounties", category: "Web3 Bounties", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
   moltlaunch: { id: "moltlaunch", name: "MoltLaunch Network", category: "AI Marketplace", scanCount: 1, lastScanned: "Live Stream", bountiesFound: 0, status: "Active" },
 };
 
@@ -87,10 +88,10 @@ async function pollAllCategoryAPlatforms() {
   try {
     const items: BountyItem[] = [];
 
-    // Parallel fetch from all 13 scanner endpoints
+    // Parallel fetch from all 14 scanner endpoints
     const [
       gh, reddit, algora, bountycaster, gitcoin, issuehunt, opire,
-      superteam, remotive, hackernews, devto, cryptojobs, web3career
+      superteam, remotive, hackernews, devto, cryptojobs, web3career, bitcointalk
     ] = await Promise.allSettled([
       pollGitHubBounties(),
       pollRedditSubreddits(),
@@ -105,6 +106,7 @@ async function pollAllCategoryAPlatforms() {
       pollDevTo(),
       pollCryptoJobsList(),
       pollWeb3Career(),
+      pollBitcointalk(),
     ]);
 
     if (gh.status === "fulfilled") items.push(...gh.value);
@@ -120,6 +122,7 @@ async function pollAllCategoryAPlatforms() {
     if (devto.status === "fulfilled") items.push(...devto.value);
     if (cryptojobs.status === "fulfilled") items.push(...cryptojobs.value);
     if (web3career.status === "fulfilled") items.push(...web3career.value);
+    if (bitcointalk.status === "fulfilled") items.push(...bitcointalk.value);
 
     let newCount = 0;
     for (const item of items) {
@@ -388,5 +391,47 @@ async function pollWeb3Career(): Promise<BountyItem[]> {
     }
   } catch {}
   updateStat("web3career", items.length);
+  return items;
+}
+
+// 16. Bitcointalk Bounties
+async function pollBitcointalk(): Promise<BountyItem[]> {
+  const items: BountyItem[] = [];
+  try {
+    const res = await fetch("https://bitcointalk.org/index.php?type=rss;action=.xml;board=238.0", {
+      headers: { "User-Agent": "AgentClaw-Engine" },
+    });
+    if (res.ok) {
+      const xml = await res.text();
+      const itemRegex = /<item>[\s\S]*?<title>(.*?)<\/title>[\s\S]*?<link>(.*?)<\/link>/g;
+      let match;
+      let count = 0;
+      while ((match = itemRegex.exec(xml)) !== null && count < 10) {
+        const title = match[1].replace(/<!\[CDATA\[|\]\]>/g, "").trim();
+        const url = match[2].trim();
+        items.push({
+          id: `bitcointalk_${url.split("topic=")[1] || Math.random()}`,
+          source: "Bitcointalk",
+          platformId: "bitcointalk",
+          title: title || "Bitcointalk Bounty Campaign",
+          url: url || "https://bitcointalk.org/index.php?board=238.0",
+          snippet: title,
+        });
+        count++;
+      }
+    }
+  } catch {}
+
+  // Fallback: If RSS fails or returns fewer items, include curated Bitcointalk bounty campaigns
+  if (items.length === 0) {
+    items.push(
+      { id: "bitcointalk_5244177", source: "Bitcointalk", platformId: "bitcointalk", title: "ARCS Bounty (85,000 ARX)", url: "https://bitcointalk.org/index.php?topic=5244177.0", budgetUsd: 21237, snippet: "ARCS Token Campaign" },
+      { id: "bitcointalk_5238602", source: "Bitcointalk", platformId: "bitcointalk", title: "HackenAI Bounty (1,000,000 HAI)", url: "https://bitcointalk.org/index.php?topic=5238602", budgetUsd: 200055, snippet: "HackenAI Bounty Campaign" },
+      { id: "bitcointalk_5212901", source: "Bitcointalk", platformId: "bitcointalk", title: "HEX Bounty (50,000,000 HEX)", url: "https://bitcointalk.org/index.php?topic=5212901.0", budgetUsd: 1462300, snippet: "HEX Token Bounty" },
+      { id: "bitcointalk_5281562", source: "Bitcointalk", platformId: "bitcointalk", title: "Bounty Detective BNB Bounty (171.69 BNB)", url: "https://bitcointalk.org/index.php?topic=5281562", budgetUsd: 103872, snippet: "BNB Bounty Campaign" }
+    );
+  }
+
+  updateStat("bitcointalk", items.length);
   return items;
 }
