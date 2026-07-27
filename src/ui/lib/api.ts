@@ -184,9 +184,20 @@ export interface ChatMessage {
 
 // --- API ---
 
+export interface PlatformStat {
+  id: string;
+  name: string;
+  category: string;
+  scanCount: number;
+  lastScanned: string;
+  bountiesFound: number;
+  status: string;
+}
+
 export const api = {
-  // Dashboard
+  // Running mode
   getStatus: () => get<StatusData>("/api/status"),
+  getPlatformStats: () => get<{ ok: boolean; platforms: PlatformStat[] }>("/api/platform-stats"),
   getTasks: () => get<{ tasks: TaskData[]; events: ActivityEvent[] }>("/api/tasks"),
   getLogs: () => get<{ log: string }>("/api/logs"),
   getConfig: () => get<ConfigData>("/api/config"),

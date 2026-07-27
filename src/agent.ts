@@ -25,7 +25,7 @@ import {
 import { agentcashBalance } from "./tools/agentcash.js";
 import * as cli from "./moltlaunch/cli.js";
 import { startCategoryBListeners } from "./listeners/categoryB.js";
-import { startCategoryAListeners } from "./listeners/categoryA.js";
+import { startCategoryAListeners, getPlatformStats } from "./listeners/categoryA.js";
 
 const PORT = Number(process.env.AGENTCLAW_PORT || process.env.CASHCLAW_PORT || process.env.PORT) || 3777;
 const MAX_BODY_BYTES = 1_048_576; // 1 MB
@@ -221,6 +221,13 @@ function handleApi(
           ? Date.now() - ctx.heartbeat.state.startedAt
           : 0,
         agentId: ctx.config.agentId,
+      });
+      break;
+
+    case "/api/platform-stats":
+      json(res, {
+        ok: true,
+        platforms: getPlatformStats(),
       });
       break;
 

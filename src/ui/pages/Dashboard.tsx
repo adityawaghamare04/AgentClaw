@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { api, type StatusData, type ActivityEvent, type StatsData, type KnowledgeEntry, type FeedbackEntry, type WalletInfo, type AgentCashBalance, type SurvivalState } from "../lib/api.js";
 import { ethToUsd } from "../lib/ethPrice.js";
+import { PlatformStatsWidget } from "../components/PlatformStatsWidget";
 
 function formatUptime(ms: number): string {
   const s = Math.floor(ms / 1000);
@@ -228,6 +229,9 @@ export function Dashboard() {
           </button>
         </div>
       </div>
+
+      {/* 24/7 Multi-Platform Radar Scanner Stats */}
+      <PlatformStatsWidget />
 
       {/* Survival Gauge & Level Roadmap */}
       {survival && (
