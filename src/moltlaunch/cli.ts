@@ -5,6 +5,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import type { Task, Bounty, WalletInfo, RegisterResult, AgentInfo } from "./types.js";
+import { dispatchGitHubSolution } from "../dispatch/github.js";
 
 const CASHCLAW_DIR = path.join(os.homedir(), ".cashclaw");
 const WALLET_FILE = path.join(CASHCLAW_DIR, "wallet.json");
@@ -182,6 +183,15 @@ export async function submitWork(
   const t = inMemoryTasks.find((item) => item.id === taskId);
   if (t) {
     t.status = "submitted";
+    saveTasksToDisk().catch(() => {});
+
+    // Real-World Dispatch Bridge: Extract URL and auto-post solution to GitHub issue
+    const urlMatch = t.task.match(/URL:\s*(https:\/\/github\.com\/[^\s]+)/i);
+    if (urlMatch && urlMatch[1]) {
+      dispatchGitHubSolution(urlMatch[1], result).catch((err) => {
+        console.warn("[Dispatch Warning] Failed to post to GitHub:", err.message);
+      });
+    }
   }
 }
 
