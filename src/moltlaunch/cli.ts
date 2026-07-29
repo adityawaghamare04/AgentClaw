@@ -9,9 +9,31 @@ import type { Task, Bounty, WalletInfo, RegisterResult, AgentInfo } from "./type
 const CASHCLAW_DIR = path.join(os.homedir(), ".cashclaw");
 const WALLET_FILE = path.join(CASHCLAW_DIR, "wallet.json");
 const AGENT_FILE = path.join(CASHCLAW_DIR, "agent.json");
+const TASKS_FILE = path.join(CASHCLAW_DIR, "tasks.json");
 
 let inMemoryTasks: Task[] = [];
 let inMemoryBounties: Bounty[] = [];
+
+async function loadTasksFromDisk(): Promise<void> {
+  try {
+    const raw = await fs.readFile(TASKS_FILE, "utf-8");
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) inMemoryTasks = parsed;
+  } catch {
+    // Default to empty array
+  }
+}
+
+async function saveTasksToDisk(): Promise<void> {
+  try {
+    await fs.mkdir(CASHCLAW_DIR, { recursive: true });
+    await fs.writeFile(TASKS_FILE, JSON.stringify(inMemoryTasks, null, 2));
+  } catch {
+    // Ignore non-critical write error
+  }
+}
+
+loadTasksFromDisk().catch(() => {});
 
 // --- Setup ---
 
@@ -118,6 +140,7 @@ export function addTaskToInbox(task: Task): void {
     if (inMemoryTasks.length > 100) {
       inMemoryTasks.shift();
     }
+    saveTasksToDisk().catch(() => {});
   }
 }
 

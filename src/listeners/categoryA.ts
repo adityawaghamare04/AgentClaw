@@ -1,6 +1,7 @@
 import { appendLog } from "../memory/log.js";
 import { CURATED_BITCOINTALK_BOUNTIES } from "../data/bitcointalkBounties.js";
 import { addTaskToInbox } from "../moltlaunch/cli.js";
+import { verifyTaskEscrow } from "../tools/escrow.js";
 
 /**
  * Category A: Autonomous Multi-Platform Feed Scraper
@@ -141,14 +142,21 @@ async function pollAllCategoryAPlatforms() {
       console.log(`[Category A] 🎯 ${logMsg}`);
       appendLog(logMsg);
 
-      // Auto-ingest into AgentClaw task inbox so LLM task solver executes work
+      // Fintech Escrow Guard: Verify task budget & backing before committing compute
+      const escrowCheck = await verifyTaskEscrow(item.source, item.budgetUsd ? String(item.budgetUsd) : undefined);
+      if (!escrowCheck.verified) {
+        console.log(`[Category A] ⚠️ Skipped task: ${escrowCheck.reason}`);
+        continue;
+      }
+
+      // Auto-ingest verified bounties into AgentClaw task inbox
       addTaskToInbox({
         id: item.id,
         agentId: "agent_claw",
         clientAddress: item.source || "CategoryA_Feed",
         task: `[${item.source}] ${item.title} — URL: ${item.url}. Details: ${item.snippet || item.title}`,
         status: "requested",
-        budgetWei: item.budgetUsd ? String(item.budgetUsd) : "50",
+        budgetWei: String(escrowCheck.estimatedBudgetUsd),
         category: item.platformId || "bounty",
       });
     }
