@@ -4,7 +4,7 @@ import os from "node:os";
 
 export interface SurvivalEvent {
   timestamp: string;
-  type: "DECAY" | "EARNING" | "FAILURE" | "REVIVE" | "LEVEL_UP";
+  type: "DECAY" | "EARNING" | "FAILURE" | "REVIVE" | "LEVEL_UP" | "SELF_IMPROVEMENT";
   hpChange: number;
   newHp: number;
   note: string;
@@ -19,6 +19,7 @@ export interface SurvivalState {
   companyLaunchUnlocked: boolean; // Unlocked at $1000 (Level 4)
   isHibernating: boolean;
   lastDecayTime: number;
+  lastEarningsTime: number;
   events: SurvivalEvent[];
 }
 
@@ -33,6 +34,7 @@ const DEFAULT_SURVIVAL: SurvivalState = {
   companyLaunchUnlocked: false,
   isHibernating: false,
   lastDecayTime: Date.now(),
+  lastEarningsTime: Date.now(),
   events: [
     {
       timestamp: new Date().toISOString(),
@@ -136,6 +138,7 @@ export function applyHourlyDecay(): SurvivalState {
 
 export function recordEarning(amountUsd: number, taskTitle: string): SurvivalState {
   const state = loadSurvivalState();
+  state.lastEarningsTime = Date.now(); // Reset 5-hour earnings timer
   const hpGain = Math.round((amountUsd / 10) * 20); // +20 HP per $10 earned
   state.health = Math.min(100, state.health + hpGain);
   state.totalEarnedUsd += amountUsd;
@@ -210,3 +213,20 @@ export function reviveAgent(): SurvivalState {
   saveSurvivalState(state);
   return state;
 }
+
+export function recordSelfImprovement(note: string): SurvivalState {
+  const state = loadSurvivalState();
+  state.lastEarningsTime = Date.now(); // Reset 5-hour idle timer
+  state.events.unshift({
+    timestamp: new Date().toISOString(),
+    type: "SELF_IMPROVEMENT",
+    hpChange: 0,
+    newHp: state.health,
+    note: `🧠 Self-Improvement: ${note}`,
+  });
+
+  if (state.events.length > 50) state.events.pop();
+  saveSurvivalState(state);
+  return state;
+}
+

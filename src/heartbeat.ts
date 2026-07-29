@@ -5,9 +5,10 @@ import type { Task } from "./moltlaunch/types.js";
 import * as cli from "./moltlaunch/cli.js";
 import { runAgentLoop, type LoopResult } from "./loop/index.js";
 import { runStudySession } from "./loop/study.js";
+import { runSelfImprovementRoutine } from "./loop/selfImprovement.js";
 import { storeFeedback } from "./memory/feedback.js";
 import { appendLog } from "./memory/log.js";
-import { applyHourlyDecay, recordEarning } from "./memory/survival.js";
+import { applyHourlyDecay, recordEarning, loadSurvivalState } from "./memory/survival.js";
 
 export interface HeartbeatState {
   running: boolean;
@@ -256,6 +257,16 @@ export function createHeartbeat(
 
       for (const task of tasks) {
         handleTaskEvent(task);
+      }
+
+      // 🧠 5-Hour Zero Income Self-Improvement Engine
+      const survival = loadSurvivalState();
+      const FIVE_HOURS_MS = 5 * 60 * 60 * 1000;
+      if (Date.now() - (survival.lastEarningsTime || 0) >= FIVE_HOURS_MS) {
+        emit({ type: "feedback", message: "🧠 5-Hour Zero Income Triggered. Executing Autonomous Code Audit & Meta-Learning..." });
+        runSelfImprovementRoutine(llm, config).catch((err) => {
+          console.warn("[Self-Improvement] Routine warning:", err);
+        });
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
