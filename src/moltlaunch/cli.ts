@@ -114,6 +114,10 @@ export async function getAgentByWallet(address: string): Promise<AgentInfo | nul
 export function addTaskToInbox(task: Task): void {
   if (!inMemoryTasks.some((t) => t.id === task.id)) {
     inMemoryTasks.push(task);
+    // Queue Throttling: Cap task inbox at 100 items to prevent Node.js heap overflow
+    if (inMemoryTasks.length > 100) {
+      inMemoryTasks.shift();
+    }
   }
 }
 
