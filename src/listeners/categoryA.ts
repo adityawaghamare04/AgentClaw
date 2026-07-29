@@ -1,5 +1,6 @@
 import { appendLog } from "../memory/log.js";
 import { CURATED_BITCOINTALK_BOUNTIES } from "../data/bitcointalkBounties.js";
+import { addTaskToInbox } from "../moltlaunch/cli.js";
 
 /**
  * Category A: Autonomous Multi-Platform Feed Scraper
@@ -139,6 +140,17 @@ async function pollAllCategoryAPlatforms() {
       const logMsg = `[${item.source}] Discovered: "${item.title}" (${item.url})`;
       console.log(`[Category A] 🎯 ${logMsg}`);
       appendLog(logMsg);
+
+      // Auto-ingest into AgentClaw task inbox so LLM task solver executes work
+      addTaskToInbox({
+        id: item.id,
+        agentId: "agent_claw",
+        clientAddress: item.source || "CategoryA_Feed",
+        task: `[${item.source}] ${item.title} — URL: ${item.url}. Details: ${item.snippet || item.title}`,
+        status: "requested",
+        budgetWei: item.budgetUsd ? String(item.budgetUsd) : "50",
+        category: item.platformId || "bounty",
+      });
     }
 
     console.log(`[Category A] 🔎 Scanned 16 platforms. Found ${newCount} new tasks.`);

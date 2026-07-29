@@ -111,6 +111,12 @@ export async function getAgentByWallet(address: string): Promise<AgentInfo | nul
 
 // --- Task operations ---
 
+export function addTaskToInbox(task: Task): void {
+  if (!inMemoryTasks.some((t) => t.id === task.id)) {
+    inMemoryTasks.push(task);
+  }
+}
+
 export async function getInbox(agentId?: string): Promise<Task[]> {
   return inMemoryTasks;
 }

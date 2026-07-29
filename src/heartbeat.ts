@@ -7,7 +7,7 @@ import { runAgentLoop, type LoopResult } from "./loop/index.js";
 import { runStudySession } from "./loop/study.js";
 import { storeFeedback } from "./memory/feedback.js";
 import { appendLog } from "./memory/log.js";
-import { applyHourlyDecay } from "./memory/survival.js";
+import { applyHourlyDecay, recordEarning } from "./memory/survival.js";
 
 export interface HeartbeatState {
   running: boolean;
@@ -222,6 +222,15 @@ export function createHeartbeat(
             message: `${tc.name}(${JSON.stringify(tc.input).slice(0, 100)}) → ${tc.success ? "ok" : "err"}`,
           });
         }
+
+        // Record earning in survival state & level progression
+        const earnedUsd = Number(task.budgetWei) || 50;
+        recordEarning(earnedUsd, task.task.slice(0, 60));
+        emit({
+          type: "feedback",
+          taskId: task.id,
+          message: `💰 Task completed! Revenue recorded: +$${earnedUsd}`,
+        });
       })
       .catch((err: unknown) => {
         const msg = err instanceof Error ? err.message : String(err);
