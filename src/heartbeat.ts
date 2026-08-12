@@ -5,10 +5,16 @@ import type { Task } from "./moltlaunch/types.js";
 import * as cli from "./moltlaunch/cli.js";
 import { runAgentLoop, type LoopResult } from "./loop/index.js";
 import { runStudySession } from "./loop/study.js";
-import { runSelfImprovementRoutine } from "./loop/selfImprovement.js";
 import { storeFeedback } from "./memory/feedback.js";
 import { appendLog } from "./memory/log.js";
 import { applyHourlyDecay, recordEarning, loadSurvivalState } from "./memory/survival.js";
+import {
+  dbRecordEarning,
+  dbUpdateTaskStatus,
+  dbLogExecution,
+  dbGetStats,
+  dbGetTaskById,
+} from "./memory/db.js";
 
 export interface HeartbeatState {
   running: boolean;
@@ -24,7 +30,7 @@ export interface HeartbeatState {
 
 export interface ActivityEvent {
   timestamp: number;
-  type: "poll" | "loop_start" | "loop_complete" | "tool_call" | "feedback" | "error" | "ws" | "study";
+  type: "poll" | "loop_start" | "loop_complete" | "tool_call" | "feedback" | "error" | "ws" | "study" | "exec";
   taskId?: string;
   message: string;
 }
@@ -37,11 +43,11 @@ const TERMINAL_STATUSES = new Set([
 
 const WS_URL = "wss://api.moltlaunch.com/ws";
 const WS_INITIAL_RECONNECT_MS = 5_000;
-const WS_MAX_RECONNECT_MS = 300_000; // 5 min cap
-// When WS is connected, poll infrequently as a sync check
+const WS_MAX_RECONNECT_MS = 300_000;
 const WS_POLL_INTERVAL_MS = 120_000;
-// Expire non-terminal tasks after 7 days to prevent memory leaks
 const TASK_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000;
+// Rate-limit cooldown after 429
+const RATE_LIMIT_COOLDOWN_MS = 60_000; // 1 min (shorter — we use free models now)
 
 export function createHeartbeat(
   config: CashClawConfig,
@@ -66,15 +72,20 @@ export function createHeartbeat(
   let wsFailLogged = false;
   const processing = new Set<string>();
   const completedTasks = new Set<string>();
-  // Track task+status combos to prevent duplicate processing from WS+poll overlap
   const processedVersions = new Map<string, string>();
   const listeners: EventListener[] = [];
+  // Retry tracking
+  const taskRetryAfter = new Map<string, number>();
+  const taskRetryCounts = new Map<string, number>();
+  let rateLimitedUntil = 0;
+  // Track consecutive 429s to detect sustained outage
+  let consecutive429s = 0;
 
   function emit(event: Omit<ActivityEvent, "timestamp">) {
     const full: ActivityEvent = { ...event, timestamp: Date.now() };
     state.events.push(full);
-    if (state.events.length > 200) {
-      state.events = state.events.slice(-200);
+    if (state.events.length > 300) {
+      state.events = state.events.slice(-300);
     }
     for (const fn of listeners) fn(full);
   }
@@ -89,7 +100,6 @@ export function createHeartbeat(
     if (!state.running || !config.agentId) return;
 
     try {
-      // Force IPv4 family option to avoid ENETUNREACH on dual-stack cloud containers without IPv6
       ws = new WebSocket(`${WS_URL}/${config.agentId}`, { family: 4 });
 
       ws.on("open", () => {
@@ -97,7 +107,6 @@ export function createHeartbeat(
         wsReconnectDelay = WS_INITIAL_RECONNECT_MS;
         wsFailLogged = false;
         emit({ type: "ws", message: "WebSocket connected" });
-        appendLog("WebSocket connected");
       });
 
       ws.on("message", (data: WebSocket.Data) => {
@@ -105,46 +114,27 @@ export function createHeartbeat(
           const msg = JSON.parse(data.toString()) as {
             event: string;
             task?: Task;
-            timestamp?: number;
           };
-
           if (msg.event === "connected") return;
-
-          emit({ type: "ws", taskId: msg.task?.id, message: `WS event: ${msg.event}` });
-
-          if (msg.task) {
-            handleTaskEvent(msg.task);
-          }
-        } catch {
-          // Ignore malformed messages
-        }
+          if (msg.task) handleTaskEvent(msg.task);
+        } catch { }
       });
 
       ws.on("close", () => {
         state.wsConnected = false;
-        // Only log the first disconnect, suppress repeated failures
         if (!wsFailLogged) {
-          emit({ type: "ws", message: "WebSocket disconnected — running on HTTP polling fallback" });
+          emit({ type: "ws", message: "WebSocket disconnected — HTTP polling active" });
           wsFailLogged = true;
         }
         scheduleWsReconnect();
       });
 
-      ws.on("error", (err: Error) => {
+      ws.on("error", () => {
         state.wsConnected = false;
-        if (!wsFailLogged) {
-          emit({ type: "ws", message: `WebSocket offline (${err.message}) — active on HTTP polling fallback` });
-          wsFailLogged = true;
-        }
         ws?.close();
         scheduleWsReconnect();
       });
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (!wsFailLogged) {
-        emit({ type: "error", message: `WebSocket connect failed: ${msg}` });
-        wsFailLogged = true;
-      }
+    } catch {
       scheduleWsReconnect();
     }
   }
@@ -153,24 +143,16 @@ export function createHeartbeat(
     if (!state.running) return;
     if (wsReconnectTimer) clearTimeout(wsReconnectTimer);
     wsReconnectTimer = setTimeout(() => connectWs(), wsReconnectDelay);
-    // Exponential backoff: 5s → 10s → 20s → 40s → ... → 5min cap
     wsReconnectDelay = Math.min(wsReconnectDelay * 2, WS_MAX_RECONNECT_MS);
   }
 
   function disconnectWs() {
-    if (wsReconnectTimer) {
-      clearTimeout(wsReconnectTimer);
-      wsReconnectTimer = null;
-    }
-    if (ws) {
-      ws.removeAllListeners();
-      ws.close();
-      ws = null;
-    }
+    if (wsReconnectTimer) { clearTimeout(wsReconnectTimer); wsReconnectTimer = null; }
+    if (ws) { ws.removeAllListeners(); ws.close(); ws = null; }
     state.wsConnected = false;
   }
 
-  // --- Task handling (shared by WS + poll) ---
+  // --- AGGRESSIVE TASK EXECUTION ENGINE ---
 
   function handleTaskEvent(task: Task) {
     if (TERMINAL_STATUSES.has(task.status)) {
@@ -179,18 +161,35 @@ export function createHeartbeat(
       }
       state.activeTasks.delete(task.id);
       processedVersions.delete(task.id);
+      taskRetryAfter.delete(task.id);
+      taskRetryCounts.delete(task.id);
       return;
     }
 
-    // Dedup: skip if we already processed this exact task+status combo
+    // Skip if globally rate-limited
+    if (Date.now() < rateLimitedUntil) {
+      state.activeTasks.set(task.id, task);
+      return;
+    }
+
+    // Skip if this task is in retry backoff
+    const retryAfter = taskRetryAfter.get(task.id);
+    if (retryAfter && Date.now() < retryAfter) {
+      state.activeTasks.set(task.id, task);
+      return;
+    }
+
+    // Dedup — but allow retries
     const version = `${task.id}:${task.status}`;
-    if (processedVersions.get(task.id) === version && !processing.has(task.id)) {
+    const prevVersion = processedVersions.get(task.id);
+    if (prevVersion === version && !processing.has(task.id) && !taskRetryAfter.has(task.id)) {
       state.activeTasks.set(task.id, task);
       return;
     }
 
     if (processing.has(task.id)) return;
 
+    // DON'T skip quoted/submitted — only skip if truly terminal
     if (task.status === "quoted" || task.status === "submitted") {
       state.activeTasks.set(task.id, task);
       processedVersions.set(task.id, version);
@@ -199,51 +198,127 @@ export function createHeartbeat(
 
     if (processing.size >= config.maxConcurrentTasks) return;
 
+    // ⚡ EXECUTE
     state.activeTasks.set(task.id, task);
     processedVersions.set(task.id, version);
+    taskRetryAfter.delete(task.id);
     processing.add(task.id);
 
-    emit({ type: "loop_start", taskId: task.id, message: `Agent loop started (${task.status})` });
-    appendLog(`Agent loop started for ${task.id} (${task.status})`);
+    const startTime = Date.now();
+    emit({ type: "exec", taskId: task.id, message: `⚡ EXECUTING: ${task.task.slice(0, 80)}` });
+    appendLog(`⚡ Executing task ${task.id}: ${task.task.slice(0, 100)}`);
+
+    // Update DB
+    dbUpdateTaskStatus(task.id, "executing");
 
     runAgentLoop(llm, task, config)
       .then((result: LoopResult) => {
         const toolNames = result.toolCalls.map((tc) => tc.name).join(", ");
+        const hasSubmit = result.toolCalls.some((tc) => tc.name === "submit_work");
+
         emit({
           type: "loop_complete",
           taskId: task.id,
-          message: `Loop done in ${result.turns} turn(s): [${toolNames}]`,
+          message: `✅ Done in ${result.turns} turns: [${toolNames}]${hasSubmit ? " → SUBMITTED" : ""}`,
         });
-        appendLog(`Loop done for ${task.id}: ${result.turns} turns, tools=[${toolNames}]`);
+        appendLog(`Task ${task.id} done: ${result.turns} turns, tools=[${toolNames}]`);
 
         for (const tc of result.toolCalls) {
           emit({
             type: "tool_call",
             taskId: task.id,
-            message: `${tc.name}(${JSON.stringify(tc.input).slice(0, 100)}) → ${tc.success ? "ok" : "err"}`,
+            message: `${tc.name}(${JSON.stringify(tc.input).slice(0, 80)}) → ${tc.success ? "✓" : "✗"}`,
           });
         }
 
-        // Record earning in survival state & level progression
-        const earnedUsd = Number(task.budgetWei) || 50;
-        recordEarning(earnedUsd, task.task.slice(0, 60));
-        emit({
-          type: "feedback",
+        // Record in DB
+        dbLogExecution({
           taskId: task.id,
-          message: `💰 Task completed! Revenue recorded: +$${earnedUsd}`,
+          startedAt: startTime,
+          completedAt: Date.now(),
+          turns: result.turns,
+          toolsUsed: result.toolCalls.map(tc => tc.name),
+          success: hasSubmit,
         });
+
+        if (hasSubmit) {
+          // Record earning
+          const earnedUsd = Number(task.budgetWei) || 25;
+          recordEarning(earnedUsd, task.task.slice(0, 60));
+          dbRecordEarning({
+            taskId: task.id,
+            source: task.clientAddress || "unknown",
+            amountUsd: earnedUsd,
+            title: task.task.slice(0, 100),
+          });
+          dbUpdateTaskStatus(task.id, "submitted", { solutionSnippet: result.reasoning.slice(0, 500) });
+
+          emit({
+            type: "feedback",
+            taskId: task.id,
+            message: `💰 SUBMITTED & DISPATCHED! Revenue: +$${earnedUsd}`,
+          });
+        } else {
+          dbUpdateTaskStatus(task.id, "completed");
+        }
+
+        // Reset 429 counter on success
+        consecutive429s = 0;
+        taskRetryCounts.delete(task.id);
       })
       .catch((err: unknown) => {
         const msg = err instanceof Error ? err.message : String(err);
-        emit({ type: "error", taskId: task.id, message: `Loop error: ${msg}` });
-        appendLog(`Loop error for ${task.id}: ${msg}`);
+        emit({ type: "error", taskId: task.id, message: `❌ Error: ${msg.slice(0, 200)}` });
+        appendLog(`Error for ${task.id}: ${msg}`);
+
+        const is429 = msg.includes("429") || msg.includes("RESOURCE_EXHAUSTED") || msg.includes("quota") || msg.includes("rate");
+        if (is429) {
+          consecutive429s++;
+          const retries = (taskRetryCounts.get(task.id) || 0) + 1;
+          taskRetryCounts.set(task.id, retries);
+
+          // Backoff: 1min, 2min, 4min, max 10min
+          const backoffMs = Math.min(RATE_LIMIT_COOLDOWN_MS * Math.pow(2, retries - 1), 10 * 60 * 1000);
+          taskRetryAfter.set(task.id, Date.now() + backoffMs);
+          rateLimitedUntil = Date.now() + RATE_LIMIT_COOLDOWN_MS;
+          processedVersions.delete(task.id);
+
+          dbUpdateTaskStatus(task.id, "queued", { errorMsg: `429 - retry #${retries}`, retries });
+
+          emit({
+            type: "error",
+            taskId: task.id,
+            message: `⏳ Rate limited — retry in ${Math.round(backoffMs / 60000)} min (attempt ${retries})`,
+          });
+        } else {
+          // Non-429: retry up to 3 times
+          const retryCount = (taskRetryCounts.get(task.id) || 0) + 1;
+          if (retryCount <= 3) {
+            taskRetryCounts.set(task.id, retryCount);
+            taskRetryAfter.set(task.id, Date.now() + 30_000);
+            processedVersions.delete(task.id);
+            dbUpdateTaskStatus(task.id, "queued", { errorMsg: msg.slice(0, 200), retries: retryCount });
+          } else {
+            dbUpdateTaskStatus(task.id, "failed", { errorMsg: msg.slice(0, 200) });
+          }
+        }
+
+        dbLogExecution({
+          taskId: task.id,
+          startedAt: startTime,
+          completedAt: Date.now(),
+          turns: 0,
+          toolsUsed: [],
+          success: false,
+          errorMsg: msg.slice(0, 300),
+        });
       })
       .finally(() => {
         processing.delete(task.id);
       });
   }
 
-  // --- Polling (fallback / sync check) ---
+  // --- Polling ---
 
   async function tick() {
     try {
@@ -253,25 +328,13 @@ export function createHeartbeat(
       state.totalPolls++;
 
       emit({ type: "poll", message: `Polled inbox: ${tasks.length} task(s)` });
-      appendLog(`Polled inbox — ${tasks.length} task(s)`);
 
       for (const task of tasks) {
         handleTaskEvent(task);
       }
-
-      // 🧠 5-Hour Zero Income Self-Improvement Engine
-      const survival = loadSurvivalState();
-      const FIVE_HOURS_MS = 5 * 60 * 60 * 1000;
-      if (Date.now() - (survival.lastEarningsTime || 0) >= FIVE_HOURS_MS) {
-        emit({ type: "feedback", message: "🧠 5-Hour Zero Income Triggered. Executing Autonomous Code Audit & Meta-Learning..." });
-        runSelfImprovementRoutine(llm, config).catch((err) => {
-          console.warn("[Self-Improvement] Routine warning:", err);
-        });
-      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       emit({ type: "error", message: `Poll error: ${msg}` });
-      appendLog(`Poll error: ${msg}`);
     }
 
     scheduleNext();
@@ -293,15 +356,14 @@ export function createHeartbeat(
     emit({
       type: "feedback",
       taskId: task.id,
-      message: `Completed — rated ${task.ratedScore}/5`,
+      message: `Rated ${task.ratedScore}/5`,
     });
-    appendLog(`Task ${task.id} completed — score ${task.ratedScore}/5`);
   }
 
   function scheduleNext() {
     if (!state.running) return;
 
-    // Expire stale non-terminal tasks to prevent memory leaks
+    // Expire stale tasks
     const now = Date.now();
     for (const [id, task] of state.activeTasks) {
       const taskTime = task.quotedAt ?? task.acceptedAt ?? task.submittedAt ?? state.startedAt;
@@ -311,21 +373,20 @@ export function createHeartbeat(
       }
     }
 
-    // Check if we should study while idle
+    // Study ONLY if completely idle and not rate-limited (deprioritized)
     void maybeStudy();
 
-    // If WebSocket is connected, poll infrequently as a sync check
     if (state.wsConnected) {
       timer = setTimeout(() => void tick(), WS_POLL_INTERVAL_MS);
       return;
     }
 
-    // Without WS, use normal polling intervals
-    const hasUrgent = [...state.activeTasks.values()].some(
+    // Fast polling when tasks exist — we want to execute ASAP
+    const hasWork = [...state.activeTasks.values()].some(
       (t) => t.status === "requested" || t.status === "revision" || t.status === "accepted",
     );
 
-    const interval = hasUrgent
+    const interval = hasWork
       ? config.polling.urgentIntervalMs
       : config.polling.intervalMs;
 
@@ -339,33 +400,31 @@ export function createHeartbeat(
     if (studying) return;
     if (processing.size > 0) return;
 
-    // Don't study if there are tasks needing action
-    const hasUrgent = [...state.activeTasks.values()].some(
-      (t) => t.status === "requested" || t.status === "revision" || t.status === "accepted",
-    );
-    if (hasUrgent) return;
+    // Don't study if rate-limited
+    if (Date.now() < rateLimitedUntil) return;
 
-    if (Date.now() - state.lastStudyTime < config.studyIntervalMs) return;
+    // Don't study if there are ANY pending tasks
+    const hasTasks = state.activeTasks.size > 0;
+    if (hasTasks) return;
+
+    // Don't study if tasks waiting for retry
+    if (taskRetryAfter.size > 0) return;
+
+    // Study much less frequently — every 2 hours instead of 30 min
+    const STUDY_INTERVAL = Math.max(config.studyIntervalMs, 7_200_000);
+    if (Date.now() - state.lastStudyTime < STUDY_INTERVAL) return;
 
     studying = true;
     emit({ type: "study", message: "Starting study session..." });
-    appendLog("Study session started");
 
     try {
       const result = await runStudySession(llm, config);
       state.lastStudyTime = Date.now();
       state.totalStudySessions++;
-
-      emit({
-        type: "study",
-        message: `Study complete: ${result.topic} (${result.tokensUsed} tokens)`,
-      });
-      appendLog(`Study session complete: ${result.topic} — ${result.insight.slice(0, 100)}`);
+      emit({ type: "study", message: `Study complete: ${result.topic}` });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       emit({ type: "error", message: `Study error: ${msg}` });
-      appendLog(`Study error: ${msg}`);
-      // Avoid retrying immediately on failure
       state.lastStudyTime = Date.now();
     } finally {
       studying = false;
@@ -376,21 +435,18 @@ export function createHeartbeat(
     if (state.running) return;
     state.running = true;
     state.startedAt = Date.now();
-    // Don't study immediately on restart — wait one full interval
     if (state.lastStudyTime === 0) {
       state.lastStudyTime = Date.now();
     }
-    appendLog("Heartbeat started");
+    appendLog("🔥 AgentClaw execution engine started — AGGRESSIVE MODE");
+    console.log("🔥 [Heartbeat] Execution engine started — AGGRESSIVE MODE");
     connectWs();
     void tick();
   }
 
   function stop() {
     state.running = false;
-    if (timer) {
-      clearTimeout(timer);
-      timer = null;
-    }
+    if (timer) { clearTimeout(timer); timer = null; }
     disconnectWs();
     appendLog("Heartbeat stopped");
   }

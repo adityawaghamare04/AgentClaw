@@ -2,6 +2,7 @@ import { appendLog } from "../memory/log.js";
 import { CURATED_BITCOINTALK_BOUNTIES } from "../data/bitcointalkBounties.js";
 import { addTaskToInbox } from "../moltlaunch/cli.js";
 import { verifyTaskEscrow } from "../tools/escrow.js";
+import { dbRecordDiscovery } from "../memory/db.js";
 
 /**
  * Category A: Autonomous Multi-Platform Feed Scraper
@@ -141,6 +142,14 @@ async function pollAllCategoryAPlatforms() {
       const logMsg = `[${item.source}] Discovered: "${item.title}" (${item.url})`;
       console.log(`[Category A] 🎯 ${logMsg}`);
       appendLog(logMsg);
+
+      // Record in persistent DB
+      dbRecordDiscovery({
+        id: item.id,
+        source: item.source,
+        title: item.title,
+        url: item.url,
+      });
 
       // Fintech Escrow Guard: Verify task budget & backing before committing compute
       const escrowCheck = await verifyTaskEscrow(item.source, item.budgetUsd ? String(item.budgetUsd) : undefined);

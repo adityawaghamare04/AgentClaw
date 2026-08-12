@@ -23,17 +23,18 @@ export async function dispatchGitHubSolution(
     };
   }
 
-  // Match https://github.com/owner/repo/issues/123
-  const match = url.match(/github\.com\/([^/]+)\/([^/]+)\/issues\/(\d+)/i);
+  // Match https://github.com/owner/repo/issues/123 or pull/123
+  const match = url.match(/github\.com\/([^/]+)\/([^/]+)\/(issues|pull)\/(\d+)/i);
   if (!match) {
     return {
       success: false,
-      reason: "URL does not match standard GitHub Issue format.",
+      reason: "URL does not match standard GitHub Issue/PR format.",
     };
   }
 
-  const [, owner, repo, issueNumber] = match;
-  const apiUrl = `https://api.github.com/repos/${owner}/${repo}/issues/${issueNumber}/comments`;
+  const [, owner, repo, itemType, issueNumber] = match;
+  const endpoint = itemType.toLowerCase() === "pull" ? "issues" : itemType.toLowerCase();
+  const apiUrl = `https://api.github.com/repos/${owner}/${repo}/${endpoint}/${issueNumber}/comments`;
 
   try {
     const formattedComment = `🤖 **AgentClaw Autonomous Bounty Submission**\n\n${solutionText}\n\n---\n*Submitted autonomously by AgentClaw Multi-Platform AI Agent.*`;

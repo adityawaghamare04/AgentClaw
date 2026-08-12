@@ -144,3 +144,78 @@ export const claimBounty: Tool = {
     return { success: true, data: `Claimed bounty ${bountyId}` };
   },
 };
+
+/**
+ * 🔍 GitHub Issue Fetcher — reads full issue content so agent can solve it
+ */
+export const fetchGitHubIssue: Tool = {
+  definition: {
+    name: "fetch_github_issue",
+    description: "Fetch the full content of a GitHub issue. Provide the URL (e.g. https://github.com/owner/repo/issues/123). Returns title, body, labels, and comments.",
+    input_schema: {
+      type: "object",
+      properties: {
+        url: { type: "string", description: "Full GitHub issue URL" },
+      },
+      required: ["url"],
+    },
+  },
+  async execute(input) {
+    const url = requireString(input, "url");
+
+    // Parse GitHub URL
+    const match = url.match(/github\.com\/([^/]+)\/([^/]+)\/(issues|pull)\/(\d+)/i);
+    if (!match) {
+      return { success: false, data: `Invalid GitHub issue URL: ${url}` };
+    }
+
+    const [, owner, repo, , num] = match;
+    const apiUrl = `https://api.github.com/repos/${owner}/${repo}/issues/${num}`;
+    const headers: Record<string, string> = {
+      "User-Agent": "AgentClaw-Engine",
+      "Accept": "application/vnd.github.v3+json",
+    };
+    if (process.env.GITHUB_TOKEN) {
+      headers["Authorization"] = `token ${process.env.GITHUB_TOKEN}`;
+    }
+
+    try {
+      const res = await fetch(apiUrl, { headers });
+      if (!res.ok) {
+        return { success: false, data: `GitHub API ${res.status}: ${await res.text()}` };
+      }
+
+      const issue = (await res.json()) as any;
+
+      // Also fetch first few comments for context
+      let commentsText = "";
+      try {
+        const commentsRes = await fetch(`${apiUrl}/comments?per_page=5`, { headers });
+        if (commentsRes.ok) {
+          const comments = (await commentsRes.json()) as any[];
+          if (comments.length > 0) {
+            commentsText = "\n\n## Comments\n" + comments
+              .map((c: any) => `**@${c.user?.login}**: ${(c.body || "").slice(0, 500)}`)
+              .join("\n\n");
+          }
+        }
+      } catch { /* ignore comment fetch errors */ }
+
+      const labels = (issue.labels || []).map((l: any) => l.name || l).join(", ");
+
+      const content = `## ${issue.title}
+
+**Repo:** ${owner}/${repo}
+**Issue #${num}** | **State:** ${issue.state} | **Labels:** ${labels || "none"}
+**Author:** @${issue.user?.login || "unknown"}
+**Created:** ${issue.created_at}
+
+## Description
+${(issue.body || "No description provided.").slice(0, 3000)}${commentsText}`;
+
+      return { success: true, data: content };
+    } catch (err: any) {
+      return { success: false, data: `Fetch error: ${err.message}` };
+    }
+  },
+};

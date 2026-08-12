@@ -137,16 +137,28 @@ export async function getAgentByWallet(address: string): Promise<AgentInfo | nul
 export function addTaskToInbox(task: Task): void {
   if (!inMemoryTasks.some((t) => t.id === task.id)) {
     inMemoryTasks.push(task);
-    // Queue Throttling: Cap task inbox at 100 items to prevent Node.js heap overflow
-    if (inMemoryTasks.length > 100) {
-      inMemoryTasks.shift();
+    // Queue Throttling: Cap task inbox at 500 items to prevent Node.js heap overflow
+    if (inMemoryTasks.length > 500) {
+      // Remove oldest terminal/completed tasks first before evicting pending ones
+      const terminalIdx = inMemoryTasks.findIndex((t) =>
+        ["completed", "declined", "cancelled", "expired", "submitted", "quoted"].includes(t.status)
+      );
+      if (terminalIdx >= 0) {
+        inMemoryTasks.splice(terminalIdx, 1);
+      } else {
+        inMemoryTasks.shift();
+      }
     }
     saveTasksToDisk().catch(() => {});
   }
 }
 
 export async function getInbox(agentId?: string): Promise<Task[]> {
-  return inMemoryTasks;
+  // Only return actionable tasks (not already completed/declined/etc)
+  const actionable = inMemoryTasks.filter((t) =>
+    ["requested", "accepted", "revision"].includes(t.status)
+  );
+  return actionable;
 }
 
 export async function getTask(taskId: string): Promise<Task> {
@@ -185,10 +197,11 @@ export async function submitWork(
     t.status = "submitted";
     saveTasksToDisk().catch(() => {});
 
-    // Real-World Dispatch Bridge: Extract URL and auto-post solution to GitHub issue
-    const urlMatch = t.task.match(/URL:\s*(https:\/\/github\.com\/[^\s]+)/i);
+    // Real-World Dispatch Bridge: Extract URL and auto-post solution to GitHub issue/PR
+    const urlMatch = t.task.match(/(https:\/\/github\.com\/[^\s\)]+)/i);
     if (urlMatch && urlMatch[1]) {
-      dispatchGitHubSolution(urlMatch[1], result).catch((err) => {
+      const cleanUrl = urlMatch[1].replace(/[\.,\);]+$/, "");
+      dispatchGitHubSolution(cleanUrl, result).catch((err) => {
         console.warn("[Dispatch Warning] Failed to post to GitHub:", err.message);
       });
     }

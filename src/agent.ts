@@ -26,6 +26,7 @@ import { agentcashBalance } from "./tools/agentcash.js";
 import * as cli from "./moltlaunch/cli.js";
 import { startCategoryBListeners } from "./listeners/categoryB.js";
 import { startCategoryAListeners, getPlatformStats } from "./listeners/categoryA.js";
+import { dbGetStats } from "./memory/db.js";
 
 const PORT = Number(process.env.AGENTCLAW_PORT || process.env.CASHCLAW_PORT || process.env.PORT) || 3777;
 const MAX_BODY_BYTES = 1_048_576; // 1 MB
@@ -369,6 +370,10 @@ function handleApi(
 
     case "/api/eth-price":
       handleEthPrice(res);
+      break;
+
+    case "/api/db-stats":
+      json(res, dbGetStats());
       break;
 
     default:
