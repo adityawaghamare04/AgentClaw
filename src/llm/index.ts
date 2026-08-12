@@ -201,6 +201,19 @@ function createOpenAICompatibleProvider(
           if (!res.ok) {
             const errText = await res.text();
             
+            // Autonomously handle 401 Unauthorized / Invalid API Key
+            if (res.status === 401) {
+              const nextKey = autonomousAdapter.rotateKeyOnQuotaExhausted(activeKey);
+              if (nextKey && nextKey !== activeKey) {
+                activeKey = nextKey;
+                headers.Authorization = `Bearer ${activeKey}`;
+                console.log(`⚡ Retrying model '${currentModel}' with newly rotated OpenRouter API key after 401 auth error.`);
+                i--; // Retry current model with rotated API key
+                continue;
+              }
+              throw new Error(`LLM API 401 Unauthorized: Invalid, expired, or exhausted API key (...${activeKey.slice(-4)}). Please update OPENROUTER_API_KEY in .env.`);
+            }
+
             // Autonomously handle 404 / 410 / 400 model deprecation or non-tool errors
             if (res.status === 404 || res.status === 410 || res.status === 400) {
               autonomousAdapter.reportModelFailure(currentModel, res.status, errText);
@@ -211,7 +224,7 @@ function createOpenAICompatibleProvider(
               // Check if OpenRouter daily quota limit reached ("free-models-per-day")
               if (isOpenRouter && (errText.includes("free-models-per-day") || errText.includes("Rate limit exceeded"))) {
                 const nextKey = autonomousAdapter.rotateKeyOnQuotaExhausted(activeKey);
-                if (nextKey) {
+                if (nextKey && nextKey !== activeKey) {
                   activeKey = nextKey;
                   headers.Authorization = `Bearer ${activeKey}`;
                   console.log(`⚡ Retrying model '${currentModel}' with newly rotated OpenRouter API key.`);
