@@ -10,6 +10,15 @@ import type {
 
 export type { LLMProvider, LLMMessage, LLMResponse } from "./types.js";
 
+// Specialized Free Model Cascade Pool for OpenRouter
+const OPENROUTER_MODEL_CASCADE = [
+  "nvidia/nemotron-3-ultra-550b-a55b:free", // Tier 1: Agentic Orchestration & Research
+  "qwen/qwen-2.5-coder-32b-instruct:free",   // Tier 2: Deep Coding & Patch Synthesis
+  "meta-llama/llama-3.3-70b-instruct:free", // Tier 3: High-capacity Instruction Following
+  "google/gemini-2.0-flash-exp:free",      // Tier 4: High-speed Fallback
+  "deepseek/deepseek-r1:free",               // Tier 5: Reasoning Fallback
+];
+
 function createAnthropicProvider(config: LLMConfig): LLMProvider {
   return {
     async chat(messages, tools) {
@@ -76,53 +85,58 @@ function toOpenAITools(tools: ToolDefinition[]): unknown[] {
 }
 
 // Translate our messages to OpenAI format
-function toOpenAIMessages(
-  messages: LLMMessage[],
-): unknown[] {
-  return messages.map((m) => {
-    // System/simple text messages
-    if (typeof m.content === "string") {
-      return { role: m.role, content: m.content };
-    }
+function toOpenAIMessages(messages: LLMMessage[]): unknown[] {
+  return messages
+    .map((m) => {
+      if (typeof m.content === "string") {
+        return { role: m.role, content: m.content };
+      }
 
-    // Assistant message with tool_use blocks
-    if (m.role === "assistant" && Array.isArray(m.content)) {
-      const textParts = m.content
-        .filter((b): b is { type: "text"; text: string } => b.type === "text")
-        .map((b) => b.text)
-        .join("");
+      if (m.role === "assistant" && Array.isArray(m.content)) {
+        const textParts = m.content
+          .filter((b): b is { type: "text"; text: string } => b.type === "text")
+          .map((b) => b.text)
+          .join("");
 
-      const toolCalls = m.content
-        .filter((b): b is { type: "tool_use"; id: string; name: string; input: Record<string, unknown> } => b.type === "tool_use")
-        .map((b) => ({
-          id: b.id,
-          type: "function",
-          function: {
-            name: b.name,
-            arguments: JSON.stringify(b.input),
-          },
+        const toolCalls = m.content
+          .filter(
+            (
+              b,
+            ): b is {
+              type: "tool_use";
+              id: string;
+              name: string;
+              input: Record<string, unknown>;
+            } => b.type === "tool_use",
+          )
+          .map((b) => ({
+            id: b.id,
+            type: "function",
+            function: {
+              name: b.name,
+              arguments: JSON.stringify(b.input),
+            },
+          }));
+
+        return {
+          role: "assistant",
+          content: textParts || null,
+          tool_calls: toolCalls.length > 0 ? toolCalls : undefined,
+        };
+      }
+
+      if (m.role === "user" && Array.isArray(m.content)) {
+        const results = m.content as ToolResultBlock[];
+        return results.map((r) => ({
+          role: "tool",
+          tool_call_id: r.tool_use_id,
+          content: r.content,
         }));
+      }
 
-      return {
-        role: "assistant",
-        content: textParts || null,
-        tool_calls: toolCalls.length > 0 ? toolCalls : undefined,
-      };
-    }
-
-    // User message with tool_result blocks
-    if (m.role === "user" && Array.isArray(m.content)) {
-      const results = m.content as ToolResultBlock[];
-      // OpenAI expects individual "tool" messages for each result
-      return results.map((r) => ({
-        role: "tool",
-        tool_call_id: r.tool_use_id,
-        content: r.content,
-      }));
-    }
-
-    return { role: m.role, content: m.content };
-  }).flat();
+      return { role: m.role, content: m.content };
+    })
+    .flat();
 }
 
 interface OpenAIToolCall {
@@ -142,82 +156,110 @@ function createOpenAICompatibleProvider(
         Authorization: `Bearer ${config.apiKey}`,
       };
 
-      if (baseUrl.includes("openrouter")) {
+      const isOpenRouter = baseUrl.includes("openrouter");
+      if (isOpenRouter) {
         headers["HTTP-Referer"] = "https://cashclaw.dev";
-        headers["X-Title"] = "CashClaw";
+        headers["X-Title"] = "AgentClaw Engine";
       }
 
-      const body: Record<string, unknown> = {
-        model: config.model,
-        max_tokens: 4096,
-        messages: toOpenAIMessages(messages),
-      };
+      // Build model candidate list: user-configured model first, followed by cascade pool if on OpenRouter
+      const modelQueue = isOpenRouter
+        ? Array.from(new Set([config.model, ...OPENROUTER_MODEL_CASCADE]))
+        : [config.model];
 
-      if (tools && tools.length > 0) {
-        body.tools = toOpenAITools(tools);
-      }
+      let lastError: Error | null = null;
 
-      const res = await fetch(`${baseUrl}/chat/completions`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(body),
-      });
+      for (let i = 0; i < modelQueue.length; i++) {
+        const currentModel = modelQueue[i];
+        const body: Record<string, unknown> = {
+          model: currentModel,
+          max_tokens: 4096,
+          messages: toOpenAIMessages(messages),
+        };
 
-      if (!res.ok) {
-        const err = await res.text();
-        throw new Error(`LLM API ${res.status}: ${err}`);
-      }
+        if (tools && tools.length > 0) {
+          body.tools = toOpenAITools(tools);
+        }
 
-      const data = (await res.json()) as {
-        choices: Array<{
-          message: {
-            content: string | null;
-            tool_calls?: OpenAIToolCall[];
-          };
-          finish_reason: string;
-        }>;
-        usage: { prompt_tokens: number; completion_tokens: number };
-      };
-
-      const choice = data.choices[0];
-      const content: ContentBlock[] = [];
-
-      if (choice.message.content) {
-        content.push({ type: "text", text: choice.message.content });
-      }
-
-      if (choice.message.tool_calls) {
-        for (const tc of choice.message.tool_calls) {
-          let input: Record<string, unknown>;
-          try {
-            input = JSON.parse(tc.function.arguments) as Record<string, unknown>;
-          } catch {
-            input = { _raw: tc.function.arguments, _error: "malformed JSON from LLM" };
-          }
-          content.push({
-            type: "tool_use",
-            id: tc.id,
-            name: tc.function.name,
-            input,
+        try {
+          const res = await fetch(`${baseUrl}/chat/completions`, {
+            method: "POST",
+            headers,
+            body: JSON.stringify(body),
           });
+
+          if (!res.ok) {
+            const errText = await res.text();
+            // If rate limited or unavailable, try next model in cascade
+            if ((res.status === 429 || res.status === 503 || res.status === 502) && i < modelQueue.length - 1) {
+              console.warn(
+                `[LLM Router Warning] ${currentModel} returned ${res.status}. Cascading to fallback: ${modelQueue[i + 1]}`,
+              );
+              continue;
+            }
+            throw new Error(`LLM API ${res.status}: ${errText}`);
+          }
+
+          const data = (await res.json()) as {
+            choices: Array<{
+              message: {
+                content: string | null;
+                tool_calls?: OpenAIToolCall[];
+              };
+              finish_reason: string;
+            }>;
+            usage: { prompt_tokens: number; completion_tokens: number };
+          };
+
+          const choice = data.choices[0];
+          const content: ContentBlock[] = [];
+
+          if (choice.message.content) {
+            content.push({ type: "text", text: choice.message.content });
+          }
+
+          if (choice.message.tool_calls) {
+            for (const tc of choice.message.tool_calls) {
+              let input: Record<string, unknown>;
+              try {
+                input = JSON.parse(tc.function.arguments) as Record<string, unknown>;
+              } catch {
+                input = { _raw: tc.function.arguments, _error: "malformed JSON from LLM" };
+              }
+              content.push({
+                type: "tool_use",
+                id: tc.id,
+                name: tc.function.name,
+                input,
+              });
+            }
+          }
+
+          const stopReasonMap: Record<string, LLMResponse["stopReason"]> = {
+            stop: "end_turn",
+            tool_calls: "tool_use",
+            length: "max_tokens",
+          };
+
+          return {
+            content,
+            stopReason: stopReasonMap[choice.finish_reason] ?? "end_turn",
+            usage: {
+              inputTokens: data.usage.prompt_tokens,
+              outputTokens: data.usage.completion_tokens,
+            },
+          };
+        } catch (err: any) {
+          lastError = err;
+          if (i < modelQueue.length - 1) {
+            console.warn(
+              `[LLM Router Error] ${currentModel} failed (${err.message}). Switching to fallback: ${modelQueue[i + 1]}`,
+            );
+          }
         }
       }
 
-      // Map finish_reason to our stopReason
-      const stopReasonMap: Record<string, LLMResponse["stopReason"]> = {
-        stop: "end_turn",
-        tool_calls: "tool_use",
-        length: "max_tokens",
-      };
-
-      return {
-        content,
-        stopReason: stopReasonMap[choice.finish_reason] ?? "end_turn",
-        usage: {
-          inputTokens: data.usage.prompt_tokens,
-          outputTokens: data.usage.completion_tokens,
-        },
-      };
+      throw lastError || new Error("All LLM models in cascade pool failed.");
     },
   };
 }
@@ -227,15 +269,9 @@ export function createLLMProvider(config: LLMConfig): LLMProvider {
     case "anthropic":
       return createAnthropicProvider(config);
     case "openai":
-      return createOpenAICompatibleProvider(
-        config,
-        "https://api.openai.com/v1",
-      );
+      return createOpenAICompatibleProvider(config, "https://api.openai.com/v1");
     case "openrouter":
-      return createOpenAICompatibleProvider(
-        config,
-        "https://openrouter.ai/api/v1",
-      );
+      return createOpenAICompatibleProvider(config, "https://openrouter.ai/api/v1");
     case "gemini":
       return createOpenAICompatibleProvider(
         config,
