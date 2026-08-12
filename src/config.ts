@@ -121,24 +121,23 @@ export function loadConfig(): CashClawConfig | null {
     }
   }
 
-  const provider = (process.env.LLM_PROVIDER as LLMConfig["provider"]) || parsed?.llm?.provider || "gemini";
+  const envProvider = (process.env.LLM_PROVIDER as LLMConfig["provider"]) || undefined;
+  const provider = envProvider || parsed?.llm?.provider || "openrouter";
+  const envModel = process.env.LLM_MODEL || undefined;
+  const model = envModel || parsed?.llm?.model || "google/gemini-2.0-flash-exp:free";
   const envKey = getApiKeyFromEnv(provider);
+  const apiKey = envKey || parsed?.llm?.apiKey || "";
 
   const config: CashClawConfig = {
     ...DEFAULT_CONFIG,
+    ...parsed,
     agentId: parsed?.agentId || "agentclaw_agent",
     llm: {
       provider,
-      model: process.env.LLM_MODEL || parsed?.llm?.model || "gemini-2.5-flash",
-      apiKey: envKey || parsed?.llm?.apiKey || "",
+      model,
+      apiKey,
     },
-    ...parsed,
   };
-
-  // Override key from backend .env if set
-  if (envKey) {
-    config.llm.apiKey = envKey;
-  }
 
   return config;
 }
