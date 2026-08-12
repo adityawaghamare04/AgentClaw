@@ -8,6 +8,8 @@ import type {
   ToolResultBlock,
 } from "./types.js";
 
+import { autonomousAdapter } from "./adaptation.js";
+
 export type { LLMProvider, LLMMessage, LLMResponse } from "./types.js";
 
 // Specialized Free Model Cascade Pool for OpenRouter
@@ -163,19 +165,10 @@ function createOpenAICompatibleProvider(
         headers["X-Title"] = "AgentClaw Engine";
       }
 
-      // Sanitize model name to replace deprecated free model slugs
-      const cleanModel = config.model.includes("deepseek-r1:free")
-        ? "nvidia/nemotron-3-ultra-550b-a55b:free"
-        : config.model;
-
-      // Build model candidate list: user-configured model first, followed by cascade pool if on OpenRouter
-      const rawQueue = isOpenRouter
-        ? [cleanModel, ...OPENROUTER_MODEL_CASCADE]
-        : [cleanModel];
-
-      const modelQueue = Array.from(new Set(rawQueue.map((m) =>
-        m.includes("deepseek-r1:free") ? "nvidia/nemotron-3-ultra-550b-a55b:free" : m
-      )));
+      // Build model candidate queue using Autonomous Model Adapter
+      const modelQueue = isOpenRouter
+        ? autonomousAdapter.getModelQueue(config.model)
+        : [config.model];
 
       let lastError: Error | null = null;
 
@@ -200,14 +193,25 @@ function createOpenAICompatibleProvider(
 
           if (!res.ok) {
             const errText = await res.text();
-            // If rate limited, unavailable, 404 deprecated, or server error, try next model in cascade
+            
+            // Autonomously handle 404 / 410 / 400 model deprecation errors
+            if (res.status === 404 || res.status === 410 || res.status === 400) {
+              autonomousAdapter.reportModelFailure(currentModel, res.status, errText);
+            }
+
+            // Cascade to next available free tier model in candidate queue
             if (i < modelQueue.length - 1) {
               console.warn(
-                `[LLM Router Warning] ${currentModel} returned ${res.status}. Cascading to fallback: ${modelQueue[i + 1]}`,
+                `[LLM Router Warning] ${currentModel} returned ${res.status}. Autonomously cascading to: ${modelQueue[i + 1]}`,
               );
               continue;
             }
             throw new Error(`LLM API ${res.status}: ${errText}`);
+          }
+
+          // Mark model as verified healthy on successful completion
+          if (isOpenRouter) {
+            autonomousAdapter.reportModelSuccess(currentModel);
           }
 
           const data = (await res.json()) as {
