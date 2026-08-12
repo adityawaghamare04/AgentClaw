@@ -121,12 +121,30 @@ export function loadConfig(): CashClawConfig | null {
     }
   }
 
-  const envProvider = (process.env.LLM_PROVIDER as LLMConfig["provider"]) || undefined;
-  const provider = envProvider || parsed?.llm?.provider || "openrouter";
+  const openrouterKey = process.env.OPENROUTER_API_KEY;
+
+  // Environment variable takes highest priority
+  let provider = (process.env.LLM_PROVIDER as LLMConfig["provider"]) || undefined;
+
+  if (!provider) {
+    if (openrouterKey) {
+      provider = "openrouter";
+    } else if (parsed?.llm?.provider && parsed.llm.provider !== "gemini") {
+      provider = parsed.llm.provider;
+    } else {
+      provider = "openrouter";
+    }
+  }
+
+  // Force openrouter if provider resolved to gemini but openrouter key is present
+  if (provider === "gemini" && openrouterKey) {
+    provider = "openrouter";
+  }
+
   const envModel = process.env.LLM_MODEL || undefined;
-  const model = envModel || parsed?.llm?.model || "google/gemini-2.0-flash-exp:free";
-  const envKey = getApiKeyFromEnv(provider);
-  const apiKey = envKey || parsed?.llm?.apiKey || "";
+  const model = envModel || (parsed?.llm?.model && !parsed.llm.model.startsWith("gemini-") ? parsed.llm.model : "nvidia/nemotron-3-ultra-550b-a55b:free");
+  
+  let apiKey = openrouterKey || getApiKeyFromEnv(provider) || parsed?.llm?.apiKey || "";
 
   const config: CashClawConfig = {
     ...DEFAULT_CONFIG,
@@ -138,6 +156,15 @@ export function loadConfig(): CashClawConfig | null {
       apiKey,
     },
   };
+
+  // Permanently overwrite stale agentclaw.json on disk if it contained gemini
+  if (parsed?.llm?.provider === "gemini" && provider === "openrouter") {
+    try {
+      saveConfig(config);
+    } catch {
+      // ignore
+    }
+  }
 
   return config;
 }

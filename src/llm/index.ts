@@ -265,13 +265,20 @@ function createOpenAICompatibleProvider(
 }
 
 export function createLLMProvider(config: LLMConfig): LLMProvider {
+  if (config.apiKey.startsWith("sk-or-") || config.provider === "openrouter" || process.env.OPENROUTER_API_KEY) {
+    const effectiveConfig: LLMConfig = {
+      ...config,
+      provider: "openrouter",
+      apiKey: config.apiKey.startsWith("sk-or-") ? config.apiKey : (process.env.OPENROUTER_API_KEY || config.apiKey),
+    };
+    return createOpenAICompatibleProvider(effectiveConfig, "https://openrouter.ai/api/v1");
+  }
+
   switch (config.provider) {
     case "anthropic":
       return createAnthropicProvider(config);
     case "openai":
       return createOpenAICompatibleProvider(config, "https://api.openai.com/v1");
-    case "openrouter":
-      return createOpenAICompatibleProvider(config, "https://openrouter.ai/api/v1");
     case "gemini":
       return createOpenAICompatibleProvider(
         config,
