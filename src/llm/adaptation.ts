@@ -53,11 +53,24 @@ class AutonomousModelAdapter {
   private activePrimaryModel = "nvidia/nemotron-3-ultra-550b-a55b:free";
   private lastFetchTime = 0;
   private rateLimitedUntil = new Map<string, number>();
+  private exhaustedKeys = new Set<string>();
+  private apiKeys: string[] = [];
+  private activeKeyIndex = 0;
 
   constructor() {
     this.loadState();
+    this.initApiKeys();
     // Background fetch free models from OpenRouter API
     this.refreshOpenRouterFreeModels().catch(() => {});
+  }
+
+  private initApiKeys() {
+    const rawKeys = process.env.OPENROUTER_API_KEYS || process.env.OPENROUTER_API_KEY || "";
+    const list = rawKeys
+      .split(",")
+      .map((k) => k.trim())
+      .filter((k) => k.length > 0);
+    this.apiKeys = Array.from(new Set(list));
   }
 
   private loadState() {
@@ -110,6 +123,46 @@ class AutonomousModelAdapter {
     } catch {
       // ignore write errors
     }
+  }
+
+  /**
+   * Returns current active OpenRouter API key with automatic fallback
+   */
+  public getActiveApiKey(fallbackKey?: string): string {
+    this.initApiKeys();
+    if (this.apiKeys.length === 0 && fallbackKey) {
+      return fallbackKey;
+    }
+    const validKeys = this.apiKeys.filter((k) => !this.exhaustedKeys.has(k));
+    if (validKeys.length > 0) {
+      const idx = this.activeKeyIndex % validKeys.length;
+      return validKeys[idx];
+    }
+    return fallbackKey || this.apiKeys[0] || "";
+  }
+
+  /**
+   * Called when OpenRouter responds with daily quota limit ("free-models-per-day").
+   * Autonomously rotates to next unexhausted API Key if available.
+   */
+  public rotateKeyOnQuotaExhausted(currentKey: string): string | null {
+    if (currentKey) {
+      this.exhaustedKeys.add(currentKey);
+    }
+    this.initApiKeys();
+    const validKeys = this.apiKeys.filter((k) => !this.exhaustedKeys.has(k));
+    if (validKeys.length > 0) {
+      this.activeKeyIndex = (this.activeKeyIndex + 1) % validKeys.length;
+      const nextKey = validKeys[0];
+      console.warn(
+        `🔑 [Autonomous API Key Rotation] Exceeded daily free quota (50 requests/day) on key ...${currentKey.slice(-4)}. Autonomously rotating to key ...${nextKey.slice(-4)}.`
+      );
+      return nextKey;
+    }
+    console.warn(
+      `⚠️ [Autonomous API Key Warning] All configured OpenRouter API keys have reached their daily free tier limit (50 requests/day). Add additional keys to OPENROUTER_API_KEYS in .env or set GEMINI_API_KEY.`
+    );
+    return null;
   }
 
   /**

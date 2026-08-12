@@ -154,12 +154,16 @@ function createOpenAICompatibleProvider(
 ): LLMProvider {
   return {
     async chat(messages, tools) {
+      const isOpenRouter = baseUrl.includes("openrouter");
+      let activeKey = isOpenRouter
+        ? autonomousAdapter.getActiveApiKey(config.apiKey)
+        : config.apiKey;
+
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${config.apiKey}`,
+        Authorization: `Bearer ${activeKey}`,
       };
 
-      const isOpenRouter = baseUrl.includes("openrouter");
       if (isOpenRouter) {
         headers["HTTP-Referer"] = "https://cashclaw.dev";
         headers["X-Title"] = "AgentClaw Engine";
@@ -185,6 +189,9 @@ function createOpenAICompatibleProvider(
         }
 
         try {
+          // Ensure latest active key is attached to request headers
+          headers.Authorization = `Bearer ${activeKey}`;
+
           const res = await fetch(`${baseUrl}/chat/completions`, {
             method: "POST",
             headers,
@@ -200,6 +207,18 @@ function createOpenAICompatibleProvider(
             } else if (res.status === 429) {
               // Register 60s temporary cool-off for rate-limited model
               autonomousAdapter.reportRateLimit(currentModel);
+
+              // Check if OpenRouter daily quota limit reached ("free-models-per-day")
+              if (isOpenRouter && (errText.includes("free-models-per-day") || errText.includes("Rate limit exceeded"))) {
+                const nextKey = autonomousAdapter.rotateKeyOnQuotaExhausted(activeKey);
+                if (nextKey) {
+                  activeKey = nextKey;
+                  headers.Authorization = `Bearer ${activeKey}`;
+                  console.log(`⚡ Retrying model '${currentModel}' with newly rotated OpenRouter API key.`);
+                  i--; // Retry current model with rotated API key
+                  continue;
+                }
+              }
             }
 
             // Cascade to next available free tier model in candidate queue
