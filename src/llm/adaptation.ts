@@ -6,7 +6,7 @@ const CONFIG_DIR = path.join(os.homedir(), ".agentclaw");
 const REGISTRY_FILE = path.join(CONFIG_DIR, "model_registry.json");
 const AGENTCLAW_CONFIG_FILE = path.join(CONFIG_DIR, "agentclaw.json");
 
-// Default curated fallback list of top free tier models on OpenRouter
+// Curated high-capacity free tier models supporting tool calls on OpenRouter
 const DEFAULT_FREE_MODELS = [
   "nvidia/nemotron-3-ultra-550b-a55b:free",
   "qwen/qwen-2.5-coder-32b-instruct:free",
@@ -18,6 +18,22 @@ const DEFAULT_FREE_MODELS = [
   "openchat/openchat-7b:free",
 ];
 
+// Keywords for models that DO NOT support general tool calling / chat
+const NON_CHAT_KEYWORDS = [
+  "content-safety",
+  "lyria",
+  "clip",
+  "embed",
+  "whisper",
+  "moderation",
+  "guard",
+  "tts",
+  "stt",
+  "image",
+  "audio",
+  "vision-preview",
+];
+
 interface ModelRegistryData {
   blacklistedModels: string[];
   lastDiscoveredFreeModels: string[];
@@ -26,14 +42,21 @@ interface ModelRegistryData {
 }
 
 class AutonomousModelAdapter {
-  private blacklisted = new Set<string>(["deepseek/deepseek-r1:free"]);
+  private blacklisted = new Set<string>([
+    "deepseek/deepseek-r1:free",
+    "google/lyria-3-pro-preview",
+    "google/lyria-3-clip-preview",
+    "nvidia/nemotron-3.5-content-safety:free",
+    "openrouter/free",
+  ]);
   private discoveredFreeModels: string[] = [...DEFAULT_FREE_MODELS];
   private activePrimaryModel = "nvidia/nemotron-3-ultra-550b-a55b:free";
   private lastFetchTime = 0;
+  private rateLimitedUntil = new Map<string, number>();
 
   constructor() {
     this.loadState();
-    // Background fetch free models from OpenRouter API every 1 hour
+    // Background fetch free models from OpenRouter API
     this.refreshOpenRouterFreeModels().catch(() => {});
   }
 
@@ -46,8 +69,11 @@ class AutonomousModelAdapter {
           data.blacklistedModels.forEach((m) => this.blacklisted.add(m));
         }
         if (data.lastDiscoveredFreeModels?.length) {
+          const cleanDiscovered = data.lastDiscoveredFreeModels.filter(
+            (m) => !NON_CHAT_KEYWORDS.some((kw) => m.toLowerCase().includes(kw))
+          );
           this.discoveredFreeModels = Array.from(
-            new Set([...data.lastDiscoveredFreeModels, ...DEFAULT_FREE_MODELS])
+            new Set([...cleanDiscovered, ...DEFAULT_FREE_MODELS])
           );
         }
         if (data.activePrimaryModel) {
@@ -88,6 +114,7 @@ class AutonomousModelAdapter {
 
   /**
    * Queries OpenRouter public models API to dynamically discover available free models.
+   * Filters out moderation, audio, embedding, and non-chat models.
    */
   public async refreshOpenRouterFreeModels(): Promise<string[]> {
     const now = Date.now();
@@ -99,13 +126,15 @@ class AutonomousModelAdapter {
     try {
       const res = await fetch("https://openrouter.ai/api/v1/models");
       if (res.ok) {
-        const data = (await res.json()) as { data: Array<{ id: string; pricing?: { prompt: string } }> };
+        const data = (await res.json()) as {
+          data: Array<{ id: string; pricing?: { prompt: string }; architecture?: { modality?: string } }>;
+        };
         const apiFreeModels = data.data
           .filter((m) => m.id.endsWith(":free") || (m.pricing && m.pricing.prompt === "0"))
-          .map((m) => m.id);
+          .map((m) => m.id)
+          .filter((id) => !NON_CHAT_KEYWORDS.some((kw) => id.toLowerCase().includes(kw)));
 
         if (apiFreeModels.length > 0) {
-          // Merge API discovered free models with default pool
           const combined = Array.from(new Set([...apiFreeModels, ...DEFAULT_FREE_MODELS]));
           this.discoveredFreeModels = combined;
           this.lastFetchTime = now;
@@ -120,10 +149,28 @@ class AutonomousModelAdapter {
   }
 
   /**
-   * Returns healthy free models, excluding blacklisted ones.
+   * Temporary rate-limit cooloff registration (60s)
+   */
+  public reportRateLimit(model: string, cooloffMs = 60_000): void {
+    this.rateLimitedUntil.set(model, Date.now() + cooloffMs);
+  }
+
+  /**
+   * Returns healthy free models, excluding blacklisted ones and cool-off models.
    */
   public getHealthyFreeModels(): string[] {
-    return this.discoveredFreeModels.filter((m) => !this.blacklisted.has(m));
+    const now = Date.now();
+    const nonBlacklisted = this.discoveredFreeModels.filter(
+      (m) => !this.blacklisted.has(m) && !NON_CHAT_KEYWORDS.some((kw) => m.toLowerCase().includes(kw))
+    );
+
+    // Exclude models currently in rate-limit cooloff
+    const available = nonBlacklisted.filter(
+      (m) => (this.rateLimitedUntil.get(m) || 0) <= now
+    );
+
+    // If all models are temporarily cooloff rate-limited, return all non-blacklisted models to avoid empty queue
+    return available.length > 0 ? available : nonBlacklisted;
   }
 
   /**
@@ -131,7 +178,7 @@ class AutonomousModelAdapter {
    */
   public getModelQueue(configuredModel?: string): string[] {
     const healthy = this.getHealthyFreeModels();
-    
+
     let candidate = configuredModel;
     if (!candidate || this.blacklisted.has(candidate) || candidate.includes("deepseek-r1:free")) {
       candidate = this.activePrimaryModel;
@@ -171,9 +218,10 @@ class AutonomousModelAdapter {
   }
 
   /**
-   * Record successful model call to ensure it stays active.
+   * Record successful model call to ensure it stays active and clears rate-limit flags.
    */
   public reportModelSuccess(model: string): void {
+    this.rateLimitedUntil.delete(model);
     if (model && !this.blacklisted.has(model) && this.activePrimaryModel !== model) {
       this.activePrimaryModel = model;
       this.saveState();

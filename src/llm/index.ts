@@ -194,9 +194,12 @@ function createOpenAICompatibleProvider(
           if (!res.ok) {
             const errText = await res.text();
             
-            // Autonomously handle 404 / 410 / 400 model deprecation errors
+            // Autonomously handle 404 / 410 / 400 model deprecation or non-tool errors
             if (res.status === 404 || res.status === 410 || res.status === 400) {
               autonomousAdapter.reportModelFailure(currentModel, res.status, errText);
+            } else if (res.status === 429) {
+              // Register 60s temporary cool-off for rate-limited model
+              autonomousAdapter.reportRateLimit(currentModel);
             }
 
             // Cascade to next available free tier model in candidate queue
@@ -204,6 +207,10 @@ function createOpenAICompatibleProvider(
               console.warn(
                 `[LLM Router Warning] ${currentModel} returned ${res.status}. Autonomously cascading to: ${modelQueue[i + 1]}`,
               );
+              if (res.status === 429) {
+                // Short jittered delay (600ms) to allow OpenRouter rate-limit bucket to refill
+                await new Promise((r) => setTimeout(r, 600 + Math.random() * 400));
+              }
               continue;
             }
             throw new Error(`LLM API ${res.status}: ${errText}`);
