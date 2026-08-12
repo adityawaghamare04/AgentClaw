@@ -206,6 +206,11 @@ export function dbGetTaskById(taskId: string): TaskRecord | undefined {
   return loadDb().tasks.find(t => t.id === taskId);
 }
 
+export function dbGetAllTasks(limit = 100): TaskRecord[] {
+  const data = loadDb();
+  return data.tasks.slice(-limit).reverse();
+}
+
 // ==================== EARNINGS OPERATIONS ====================
 
 const TREASURY_DEFAULT = "0xfdCE8864Ab96584102354Eb2d270187E0E900492";

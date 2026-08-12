@@ -33,6 +33,7 @@ import {
   dbGetEarnings,
   dbConfirmWalletTransfer,
   dbRecordEarning,
+  dbGetAllTasks,
 } from "./memory/db.js";
 
 const PORT = Number(process.env.AGENTCLAW_PORT || process.env.CASHCLAW_PORT || process.env.PORT) || 3777;
@@ -239,12 +240,40 @@ function handleApi(
       });
       break;
 
-    case "/api/tasks":
+    case "/api/tasks": {
+      const activeTasksMap = ctx.heartbeat.state.activeTasks;
+      const dbTasks = dbGetAllTasks(100);
+      const mergedMap = new Map<string, any>();
+
+      // Populate DB tasks first
+      for (const dbt of dbTasks) {
+        mergedMap.set(dbt.id, {
+          id: dbt.id,
+          task: dbt.title,
+          status: dbt.status,
+          quotedPriceWei: dbt.earnedUsd ? String(dbt.earnedUsd) : undefined,
+          result: dbt.solutionSnippet,
+        });
+      }
+
+      // Overlay live active tasks
+      for (const at of activeTasksMap.values()) {
+        mergedMap.set(at.id, {
+          id: at.id,
+          task: at.task,
+          status: at.status,
+          quotedPriceWei: at.quotedPriceWei,
+          ratedScore: at.ratedScore,
+          result: at.result,
+        });
+      }
+
       json(res, {
-        tasks: [...ctx.heartbeat.state.activeTasks.values()],
+        tasks: Array.from(mergedMap.values()),
         events: ctx.heartbeat.state.events.slice(-50),
       });
       break;
+    }
 
     case "/api/logs":
       json(res, { log: readTodayLog() });
