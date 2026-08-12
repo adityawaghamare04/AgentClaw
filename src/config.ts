@@ -142,7 +142,10 @@ export function loadConfig(): CashClawConfig | null {
   }
 
   const envModel = process.env.LLM_MODEL || undefined;
-  const model = envModel || (parsed?.llm?.model && !parsed.llm.model.startsWith("gemini-") ? parsed.llm.model : "nvidia/nemotron-3-ultra-550b-a55b:free");
+  let model = envModel || (parsed?.llm?.model && !parsed.llm.model.startsWith("gemini-") ? parsed.llm.model : "nvidia/nemotron-3-ultra-550b-a55b:free");
+  if (model.includes("deepseek-r1:free")) {
+    model = "nvidia/nemotron-3-ultra-550b-a55b:free";
+  }
   
   let apiKey = openrouterKey || getApiKeyFromEnv(provider) || parsed?.llm?.apiKey || "";
 

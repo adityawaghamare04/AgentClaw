@@ -12,11 +12,12 @@ export type { LLMProvider, LLMMessage, LLMResponse } from "./types.js";
 
 // Specialized Free Model Cascade Pool for OpenRouter
 const OPENROUTER_MODEL_CASCADE = [
-  "nvidia/nemotron-3-ultra-550b-a55b:free", // Tier 1: Agentic Orchestration & Research
-  "qwen/qwen-2.5-coder-32b-instruct:free",   // Tier 2: Deep Coding & Patch Synthesis
-  "meta-llama/llama-3.3-70b-instruct:free", // Tier 3: High-capacity Instruction Following
-  "google/gemini-2.0-flash-exp:free",      // Tier 4: High-speed Fallback
-  "deepseek/deepseek-r1:free",               // Tier 5: Reasoning Fallback
+  "nvidia/nemotron-3-ultra-550b-a55b:free",      // Tier 1: Agentic Orchestration & Research
+  "qwen/qwen-2.5-coder-32b-instruct:free",        // Tier 2: Deep Coding & Patch Synthesis
+  "meta-llama/llama-3.3-70b-instruct:free",      // Tier 3: High-capacity Instruction Following
+  "google/gemini-2.0-flash-exp:free",           // Tier 4: High-speed Fallback
+  "deepseek/deepseek-r1-distill-llama-70b:free", // Tier 5: Reasoning Fallback
+  "mistralai/mistral-7b-instruct:free",          // Tier 6: Lightweight Fallback
 ];
 
 function createAnthropicProvider(config: LLMConfig): LLMProvider {
@@ -162,10 +163,19 @@ function createOpenAICompatibleProvider(
         headers["X-Title"] = "AgentClaw Engine";
       }
 
+      // Sanitize model name to replace deprecated free model slugs
+      const cleanModel = config.model.includes("deepseek-r1:free")
+        ? "nvidia/nemotron-3-ultra-550b-a55b:free"
+        : config.model;
+
       // Build model candidate list: user-configured model first, followed by cascade pool if on OpenRouter
-      const modelQueue = isOpenRouter
-        ? Array.from(new Set([config.model, ...OPENROUTER_MODEL_CASCADE]))
-        : [config.model];
+      const rawQueue = isOpenRouter
+        ? [cleanModel, ...OPENROUTER_MODEL_CASCADE]
+        : [cleanModel];
+
+      const modelQueue = Array.from(new Set(rawQueue.map((m) =>
+        m.includes("deepseek-r1:free") ? "nvidia/nemotron-3-ultra-550b-a55b:free" : m
+      )));
 
       let lastError: Error | null = null;
 
@@ -190,8 +200,8 @@ function createOpenAICompatibleProvider(
 
           if (!res.ok) {
             const errText = await res.text();
-            // If rate limited or unavailable, try next model in cascade
-            if ((res.status === 429 || res.status === 503 || res.status === 502) && i < modelQueue.length - 1) {
+            // If rate limited, unavailable, 404 deprecated, or server error, try next model in cascade
+            if (i < modelQueue.length - 1) {
               console.warn(
                 `[LLM Router Warning] ${currentModel} returned ${res.status}. Cascading to fallback: ${modelQueue[i + 1]}`,
               );
