@@ -242,21 +242,21 @@ export function createHeartbeat(
         });
 
         if (hasSubmit) {
-          // Record earning
+          // Log earning in Pending Escrow state
           const earnedUsd = Number(task.budgetWei) || 25;
-          recordEarning(earnedUsd, task.task.slice(0, 60));
           dbRecordEarning({
             taskId: task.id,
-            source: task.clientAddress || "unknown",
+            source: task.clientAddress || "bounty",
             amountUsd: earnedUsd,
             title: task.task.slice(0, 100),
+            payoutStatus: "pending_escrow",
           });
           dbUpdateTaskStatus(task.id, "submitted", { solutionSnippet: result.reasoning.slice(0, 500) });
 
           emit({
             type: "feedback",
             taskId: task.id,
-            message: `💰 SUBMITTED & DISPATCHED! Revenue: +$${earnedUsd}`,
+            message: `🟡 SUBMITTED! Bounty +$${earnedUsd} pending escrow release to MetaWallet`,
           });
         } else {
           dbUpdateTaskStatus(task.id, "completed");

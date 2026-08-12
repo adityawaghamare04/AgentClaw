@@ -53,8 +53,8 @@ async function pollTelegram(token: string) {
         await sendTelegramReply(token, chatId, "🤖 *AgentClaw 24/7 Survival Engine Active*\n\nSend me a task or bounty using:\n`/task <description> $<budget>`");
       } else if (text.startsWith("/task") || text.toLowerCase().includes("bounty")) {
         const taskContent = text.replace(/^\/task/, "").trim() || "Telegram Task";
-        const updatedHP = recordEarning(15, `[Telegram] ${taskContent.slice(0, 30)}`);
-        await sendTelegramReply(token, chatId, `✅ *Task Accepted & Logged*\n\nTask: ${taskContent}\nEarnings: +$15.00\nCurrent HP: ${updatedHP.hp}/100`);
+        const updatedState = recordEarning(15, `[Telegram] ${taskContent.slice(0, 30)}`);
+        await sendTelegramReply(token, chatId, `✅ *Task Accepted & Logged*\n\nTask: ${taskContent}\nEarnings: +$15.00\nCurrent HP: ${updatedState.health}/100`);
       }
     }
   } catch {

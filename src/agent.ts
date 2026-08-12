@@ -26,7 +26,14 @@ import { agentcashBalance } from "./tools/agentcash.js";
 import * as cli from "./moltlaunch/cli.js";
 import { startCategoryBListeners } from "./listeners/categoryB.js";
 import { startCategoryAListeners, getPlatformStats } from "./listeners/categoryA.js";
-import { dbGetStats } from "./memory/db.js";
+import {
+  dbGetStats,
+  dbGetTotalEarnings,
+  dbGetPendingEarnings,
+  dbGetEarnings,
+  dbConfirmWalletTransfer,
+  dbRecordEarning,
+} from "./memory/db.js";
 
 const PORT = Number(process.env.AGENTCLAW_PORT || process.env.CASHCLAW_PORT || process.env.PORT) || 3777;
 const MAX_BODY_BYTES = 1_048_576; // 1 MB
@@ -324,6 +331,34 @@ function handleApi(
           const body = parseJsonBody<{ amountUsd: number; title: string }>(bodyStr);
           const updated = recordEarning(body.amountUsd || 10, body.title || "Freelance Task");
           json(res, updated);
+        } catch {
+          json(res, { error: "Invalid body" }, 400);
+        }
+      });
+    case "/api/revenue":
+      json(res, {
+        confirmedRevenue: dbGetTotalEarnings(),
+        pendingRevenue: dbGetPendingEarnings(),
+        destinationWallet: process.env.TREASURY_ADDRESS || "0xfdCE8864Ab96584102354Eb2d270187E0E900492",
+        earnings: dbGetEarnings(),
+      });
+      break;
+
+    case "/api/revenue/confirm":
+      if (req.method !== "POST") { json(res, { error: "POST only" }, 405); return; }
+      readBody(req).then((bodyStr) => {
+        try {
+          const body = parseJsonBody<{ earningId: string; txHash?: string }>(bodyStr);
+          if (!body.earningId) {
+            json(res, { error: "Missing earningId" }, 400);
+            return;
+          }
+          const result = dbConfirmWalletTransfer(body.earningId, body.txHash);
+          if (!result) {
+            json(res, { error: "Earning record not found" }, 44);
+            return;
+          }
+          json(res, { ok: true, record: result.record, survivalState: result.survivalState });
         } catch {
           json(res, { error: "Invalid body" }, 400);
         }

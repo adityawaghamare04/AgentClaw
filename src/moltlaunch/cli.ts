@@ -70,7 +70,6 @@ export async function walletShow(): Promise<WalletInfo> {
 
   return {
     address: account.address,
-    privateKey: "[SECURE_ON_BACKEND]",
     balance,
   };
 }
@@ -99,8 +98,7 @@ export async function registerAgent(opts: RegisterOpts): Promise<RegisterResult>
   const agentId = `agent_${Date.now()}_${wallet.address.slice(2, 8)}`;
   const result: RegisterResult = {
     agentId,
-    name: opts.name,
-    address: wallet.address,
+    registrationStatus: "approved",
   };
   await fs.writeFile(AGENT_FILE, JSON.stringify({
     ...opts,

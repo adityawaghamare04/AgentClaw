@@ -48,6 +48,10 @@ export interface EarningRecord {
   amountUsd: number;
   title: string;
   timestamp: number;
+  payoutStatus: "pending_escrow" | "verified_transferred" | "failed";
+  destinationWallet: string;
+  verifiedAt?: number;
+  txHash?: string;
 }
 
 export interface ExecutionRecord {
@@ -204,23 +208,61 @@ export function dbGetTaskById(taskId: string): TaskRecord | undefined {
 
 // ==================== EARNINGS OPERATIONS ====================
 
-export function dbRecordEarning(earning: Omit<EarningRecord, "id" | "timestamp">): EarningRecord {
+const TREASURY_DEFAULT = "0xfdCE8864Ab96584102354Eb2d270187E0E900492";
+
+export function dbRecordEarning(earning: Partial<EarningRecord> & { amountUsd: number; title: string }): EarningRecord {
   const data = loadDb();
+  const treasuryAddress = process.env.TREASURY_ADDRESS || TREASURY_DEFAULT;
   const record: EarningRecord = {
-    ...earning,
-    id: `earn_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    id: earning.id || `earn_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    taskId: earning.taskId || "submission",
+    source: earning.source || "bounty",
+    amountUsd: earning.amountUsd,
+    title: earning.title,
     timestamp: Date.now(),
+    payoutStatus: earning.payoutStatus || "pending_escrow",
+    destinationWallet: earning.destinationWallet || treasuryAddress,
+    txHash: earning.txHash,
   };
   
   data.earnings.push(record);
-  data.meta.totalEarningsUsd += earning.amountUsd;
-  
   scheduleSave();
   return record;
 }
 
+export function dbConfirmWalletTransfer(earningId: string, txHash?: string): { record: EarningRecord; survivalState: unknown } | null {
+  const data = loadDb();
+  const record = data.earnings.find((e) => e.id === earningId || e.taskId === earningId);
+  if (!record) return null;
+
+  if (record.payoutStatus !== "verified_transferred") {
+    record.payoutStatus = "verified_transferred";
+    record.verifiedAt = Date.now();
+    if (txHash) record.txHash = txHash;
+    data.meta.totalEarningsUsd += record.amountUsd;
+    scheduleSave();
+
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { recordEarning } = require("./survival");
+    const survivalState = recordEarning(record.amountUsd, record.title);
+    return { record, survivalState };
+  }
+
+  return { record, survivalState: null };
+}
+
 export function dbGetTotalEarnings(): number {
-  return loadDb().meta.totalEarningsUsd;
+  const earnings = loadDb().earnings;
+  return earnings
+    .filter((e) => e.payoutStatus === "verified_transferred")
+    .reduce((sum, e) => sum + e.amountUsd, 0);
+}
+
+export function dbGetPendingEarnings(): number {
+  const earnings = loadDb().earnings;
+  return earnings
+    .filter((e) => e.payoutStatus === "pending_escrow")
+    .reduce((sum, e) => sum + e.amountUsd, 0);
 }
 
 export function dbGetEarnings(): EarningRecord[] {

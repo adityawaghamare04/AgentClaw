@@ -194,6 +194,26 @@ export interface PlatformStat {
   status: string;
 }
 
+export interface EarningRecord {
+  id: string;
+  taskId: string;
+  source: string;
+  amountUsd: number;
+  title: string;
+  timestamp: number;
+  payoutStatus: "pending_escrow" | "verified_transferred" | "failed";
+  destinationWallet: string;
+  verifiedAt?: number;
+  txHash?: string;
+}
+
+export interface RevenueData {
+  confirmedRevenue: number;
+  pendingRevenue: number;
+  destinationWallet: string;
+  earnings: EarningRecord[];
+}
+
 export const api = {
   // Running mode
   getStatus: () => get<StatusData>("/api/status"),
@@ -220,6 +240,9 @@ export const api = {
   reviveSurvival: () => post<SurvivalState>("/api/survival/revive"),
   recordEarning: (amountUsd: number, title: string) =>
     post<SurvivalState>("/api/survival/earn", { amountUsd, title }),
+  getRevenue: () => get<RevenueData>("/api/revenue"),
+  confirmRevenue: (earningId: string, txHash?: string) =>
+    post<{ ok: boolean; record: EarningRecord; survivalState: SurvivalState }>("/api/revenue/confirm", { earningId, txHash }),
 
   // Setup
   getSetupStatus: () => get<SetupStatus>("/api/setup/status"),
