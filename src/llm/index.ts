@@ -317,61 +317,108 @@ function createOpenAICompatibleProvider(
   };
 }
 
+function createCascadeLLMProvider(
+  providers: Array<{ name: string; provider: LLMProvider }>
+): LLMProvider {
+  if (providers.length === 1) {
+    return providers[0].provider;
+  }
+
+  return {
+    async chat(messages, tools) {
+      let lastError: Error | null = null;
+      for (let i = 0; i < providers.length; i++) {
+        const p = providers[i];
+        try {
+          return await p.provider.chat(messages, tools);
+        } catch (err: any) {
+          lastError = err;
+          if (i < providers.length - 1) {
+            console.warn(
+              `⚠️ [LLM Failover Cascade] ${p.name} failed (${err.message}). Seamlessly cascading to fallback provider: ${providers[i + 1].name}`,
+            );
+          }
+        }
+      }
+      throw lastError || new Error("All providers in failover cascade pool failed.");
+    },
+  };
+}
+
 export function createLLMProvider(config: LLMConfig): LLMProvider {
-  // 1. Ollama / Local LLM provider (Zero rate limit, 100% free offline execution)
-  if (
-    config.provider === "ollama" ||
-    config.provider === "local" ||
-    config.provider === "lmstudio" ||
-    process.env.OLLAMA_BASE_URL
-  ) {
-    const baseUrl =
-      process.env.OLLAMA_BASE_URL ||
-      config.baseUrl ||
-      (config.provider === "lmstudio" ? "http://localhost:1234/v1" : "http://localhost:11434/v1");
-    const effectiveConfig: LLMConfig = {
+  const cascadeList: Array<{ name: string; provider: LLMProvider }> = [];
+
+  const geminiKey = process.env.GEMINI_API_KEY || (config.provider === "gemini" ? config.apiKey : undefined);
+  const groqKey = process.env.GROQ_API_KEY || (config.provider === "groq" ? config.apiKey : undefined);
+  const openRouterKey =
+    process.env.OPENROUTER_API_KEY ||
+    process.env.OPENROUTER_API_KEYS ||
+    (config.provider === "openrouter" ? config.apiKey : undefined);
+
+  // 1. Primary: Gemini Provider (if key exists)
+  if (geminiKey) {
+    const geminiModel = config.model && config.model.includes("gemini") ? config.model : "gemini-2.5-flash";
+    const geminiConfig: LLMConfig = {
+      ...config,
+      provider: "gemini",
+      apiKey: geminiKey,
+      model: geminiModel,
+    };
+    cascadeList.push({
+      name: `Google Gemini (${geminiModel})`,
+      provider: createOpenAICompatibleProvider(
+        geminiConfig,
+        "https://generativelanguage.googleapis.com/v1beta/openai",
+      ),
+    });
+  }
+
+  // 2. Secondary: Groq Provider (Ultra-fast 350 t/s fallback)
+  if (groqKey) {
+    const groqModel = "llama-3.3-70b-versatile";
+    const groqConfig: LLMConfig = {
+      ...config,
+      provider: "groq",
+      apiKey: groqKey,
+      model: groqModel,
+    };
+    cascadeList.push({
+      name: `Groq (${groqModel})`,
+      provider: createOpenAICompatibleProvider(groqConfig, "https://api.groq.com/openai/v1"),
+    });
+  }
+
+  // 3. OpenRouter Provider (Only if explicitly set as provider)
+  if (config.provider === "openrouter" && config.apiKey && config.apiKey.startsWith("sk-or-")) {
+    const openRouterConfig: LLMConfig = {
+      ...config,
+      provider: "openrouter",
+      apiKey: config.apiKey,
+    };
+    cascadeList.push({
+      name: `OpenRouter (${config.model})`,
+      provider: createOpenAICompatibleProvider(openRouterConfig, "https://openrouter.ai/api/v1"),
+    });
+  }
+
+  // 4. Quaternary: Local Ollama (if running)
+  if (process.env.OLLAMA_BASE_URL || config.provider === "ollama" || config.provider === "local") {
+    const baseUrl = process.env.OLLAMA_BASE_URL || config.baseUrl || "http://localhost:11434/v1";
+    const localConfig: LLMConfig = {
       ...config,
       provider: "ollama",
       apiKey: config.apiKey || "ollama",
       model: config.model || "qwen2.5-coder",
     };
-    console.log(`🏠 [LLM Engine] Initializing Local LLM provider at ${baseUrl} (model: ${effectiveConfig.model})`);
-    return createOpenAICompatibleProvider(effectiveConfig, baseUrl);
+    cascadeList.push({
+      name: `Local Ollama (${localConfig.model})`,
+      provider: createOpenAICompatibleProvider(localConfig, baseUrl),
+    });
   }
 
-  // 2. Google Gemini provider (1,500 free requests/day, 15 RPM)
-  if (
-    config.provider === "gemini" ||
-    (process.env.GEMINI_API_KEY && (!config.apiKey || !config.apiKey.startsWith("sk-or-")))
-  ) {
-    const geminiKey = process.env.GEMINI_API_KEY || config.apiKey;
-    const model = config.model.includes("gemini") ? config.model : "gemini-2.5-flash";
-    const effectiveConfig: LLMConfig = {
-      ...config,
-      provider: "gemini",
-      apiKey: geminiKey,
-      model,
-    };
-    console.log(`✨ [LLM Engine] Initializing Google Gemini provider (model: ${model})`);
-    return createOpenAICompatibleProvider(
-      effectiveConfig,
-      "https://generativelanguage.googleapis.com/v1beta/openai"
-    );
-  }
-
-  // 3. OpenRouter provider (Multi-key rotation)
-  if (
-    config.apiKey.startsWith("sk-or-") ||
-    config.provider === "openrouter" ||
-    process.env.OPENROUTER_API_KEY ||
-    process.env.OPENROUTER_API_KEYS
-  ) {
-    const effectiveConfig: LLMConfig = {
-      ...config,
-      provider: "openrouter",
-      apiKey: config.apiKey.startsWith("sk-or-") ? config.apiKey : (process.env.OPENROUTER_API_KEY || config.apiKey),
-    };
-    return createOpenAICompatibleProvider(effectiveConfig, "https://openrouter.ai/api/v1");
+  if (cascadeList.length > 0) {
+    console.log(`🛡️ [LLM Router] Initialized Failover Chain: ${cascadeList.map((c) => c.name).join(" -> ")}`);
+    return createCascadeLLMProvider(cascadeList);
   }
 
   switch (config.provider) {
