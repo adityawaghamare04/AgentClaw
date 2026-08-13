@@ -159,10 +159,17 @@ function createOpenAICompatibleProvider(
         ? autonomousAdapter.getActiveApiKey(config.apiKey)
         : config.apiKey;
 
+      const isGemini = config.provider === "gemini" || baseUrl.includes("generativelanguage.googleapis.com");
+
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${activeKey}`,
       };
+
+      // Gemini API keys (AQ., AIza, etc.) use ?key= query param auth;
+      // all other providers use Authorization: Bearer header
+      if (!isGemini) {
+        headers.Authorization = `Bearer ${activeKey}`;
+      }
 
       if (isOpenRouter) {
         headers["HTTP-Referer"] = "https://cashclaw.dev";
@@ -199,10 +206,15 @@ function createOpenAICompatibleProvider(
         }
 
         try {
-          // Ensure latest active key is attached to request headers
-          headers.Authorization = `Bearer ${activeKey}`;
+          // Build request URL: Gemini uses ?key= query param, others use Bearer header
+          let requestUrl = `${baseUrl}/chat/completions`;
+          if (isGemini) {
+            requestUrl += `?key=${activeKey}`;
+          } else {
+            headers.Authorization = `Bearer ${activeKey}`;
+          }
 
-          const res = await fetch(`${baseUrl}/chat/completions`, {
+          const res = await fetch(requestUrl, {
             method: "POST",
             headers,
             body: JSON.stringify(body),
