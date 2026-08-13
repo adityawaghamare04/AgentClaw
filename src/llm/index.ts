@@ -169,9 +169,19 @@ function createOpenAICompatibleProvider(
         headers["X-Title"] = "AgentClaw Engine";
       }
 
+      const isGroq = config.provider === "groq" || baseUrl.includes("groq.com");
+      const GROQ_MODEL_CASCADE = [
+        "llama-3.3-70b-versatile",
+        "llama-3.1-8b-instant",
+        "mixtral-8x7b-32768",
+        "gemma2-9b-it",
+      ];
+
       // Build model candidate queue using Autonomous Model Adapter
       const modelQueue = isOpenRouter
         ? autonomousAdapter.getModelQueue(config.model)
+        : isGroq
+        ? GROQ_MODEL_CASCADE
         : [config.model];
 
       let lastError: Error | null = null;
@@ -240,8 +250,8 @@ function createOpenAICompatibleProvider(
                 `[LLM Router Warning] ${currentModel} returned ${res.status}. Autonomously cascading to: ${modelQueue[i + 1]}`,
               );
               if (res.status === 429) {
-                // Short jittered delay (600ms) to allow OpenRouter rate-limit bucket to refill
-                await new Promise((r) => setTimeout(r, 600 + Math.random() * 400));
+                // Short jittered delay (1500ms) to allow LLM rate-limit bucket to refill
+                await new Promise((r) => setTimeout(r, 1500 + Math.random() * 500));
               }
               continue;
             }
