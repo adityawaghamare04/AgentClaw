@@ -345,7 +345,7 @@ export function createLLMProvider(config: LLMConfig): LLMProvider {
     (process.env.GEMINI_API_KEY && (!config.apiKey || !config.apiKey.startsWith("sk-or-")))
   ) {
     const geminiKey = process.env.GEMINI_API_KEY || config.apiKey;
-    const model = config.model.includes("gemini") ? config.model : "gemini-2.0-flash";
+    const model = config.model.includes("gemini") ? config.model : "gemini-2.5-flash";
     const effectiveConfig: LLMConfig = {
       ...config,
       provider: "gemini",
