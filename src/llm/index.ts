@@ -318,7 +318,54 @@ function createOpenAICompatibleProvider(
 }
 
 export function createLLMProvider(config: LLMConfig): LLMProvider {
-  if (config.apiKey.startsWith("sk-or-") || config.provider === "openrouter" || process.env.OPENROUTER_API_KEY) {
+  // 1. Ollama / Local LLM provider (Zero rate limit, 100% free offline execution)
+  if (
+    config.provider === "ollama" ||
+    config.provider === "local" ||
+    config.provider === "lmstudio" ||
+    process.env.OLLAMA_BASE_URL
+  ) {
+    const baseUrl =
+      process.env.OLLAMA_BASE_URL ||
+      config.baseUrl ||
+      (config.provider === "lmstudio" ? "http://localhost:1234/v1" : "http://localhost:11434/v1");
+    const effectiveConfig: LLMConfig = {
+      ...config,
+      provider: "ollama",
+      apiKey: config.apiKey || "ollama",
+      model: config.model || "qwen2.5-coder",
+    };
+    console.log(`🏠 [LLM Engine] Initializing Local LLM provider at ${baseUrl} (model: ${effectiveConfig.model})`);
+    return createOpenAICompatibleProvider(effectiveConfig, baseUrl);
+  }
+
+  // 2. Google Gemini provider (1,500 free requests/day, 15 RPM)
+  if (
+    config.provider === "gemini" ||
+    (process.env.GEMINI_API_KEY && (!config.apiKey || !config.apiKey.startsWith("sk-or-")))
+  ) {
+    const geminiKey = process.env.GEMINI_API_KEY || config.apiKey;
+    const model = config.model.includes("gemini") ? config.model : "gemini-2.0-flash";
+    const effectiveConfig: LLMConfig = {
+      ...config,
+      provider: "gemini",
+      apiKey: geminiKey,
+      model,
+    };
+    console.log(`✨ [LLM Engine] Initializing Google Gemini provider (model: ${model})`);
+    return createOpenAICompatibleProvider(
+      effectiveConfig,
+      "https://generativelanguage.googleapis.com/v1beta/openai"
+    );
+  }
+
+  // 3. OpenRouter provider (Multi-key rotation)
+  if (
+    config.apiKey.startsWith("sk-or-") ||
+    config.provider === "openrouter" ||
+    process.env.OPENROUTER_API_KEY ||
+    process.env.OPENROUTER_API_KEYS
+  ) {
     const effectiveConfig: LLMConfig = {
       ...config,
       provider: "openrouter",
@@ -332,11 +379,8 @@ export function createLLMProvider(config: LLMConfig): LLMProvider {
       return createAnthropicProvider(config);
     case "openai":
       return createOpenAICompatibleProvider(config, "https://api.openai.com/v1");
-    case "gemini":
-      return createOpenAICompatibleProvider(
-        config,
-        "https://generativelanguage.googleapis.com/v1beta/openai",
-      );
+    case "groq":
+      return createOpenAICompatibleProvider(config, "https://api.groq.com/openai/v1");
     default:
       throw new Error(`Unknown LLM provider: ${config.provider}`);
   }

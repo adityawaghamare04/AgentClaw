@@ -3,9 +3,10 @@ import path from "node:path";
 import os from "node:os";
 
 export interface LLMConfig {
-  provider: "anthropic" | "openai" | "openrouter" | "gemini";
+  provider: "anthropic" | "openai" | "openrouter" | "gemini" | "ollama" | "local" | "lmstudio" | "groq";
   model: string;
   apiKey: string;
+  baseUrl?: string;
 }
 
 export interface PricingConfig {
@@ -99,6 +100,10 @@ export function getApiKeyFromEnv(provider: LLMConfig["provider"]): string {
     case "openrouter": return process.env.OPENROUTER_API_KEY || "";
     case "openai": return process.env.OPENAI_API_KEY || "";
     case "anthropic": return process.env.ANTHROPIC_API_KEY || "";
+    case "groq": return process.env.GROQ_API_KEY || "";
+    case "ollama":
+    case "local":
+    case "lmstudio": return "ollama";
     default: return "";
   }
 }
@@ -221,7 +226,11 @@ export function initConfig(opts: {
     anthropic: "claude-sonnet-4-20250514",
     openai: "gpt-4o",
     openrouter: "google/gemini-2.5-pro",
-    gemini: "gemini-2.5-pro",
+    gemini: "gemini-2.0-flash",
+    ollama: "qwen2.5-coder",
+    local: "qwen2.5-coder",
+    lmstudio: "qwen2.5-coder",
+    groq: "llama-3.3-70b-versatile",
   };
 
   const config: CashClawConfig = {
