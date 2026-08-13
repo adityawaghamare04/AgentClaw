@@ -15,61 +15,23 @@ import os from "node:os";
  * - knowledge: Learning entries
  */
 
-const DB_DIR = path.join(os.homedir(), ".agentclaw", "db");
+const PROJECT_DB_DIR = path.join(process.cwd(), "data", "db");
+const HOME_DB_DIR = path.join(os.homedir(), ".agentclaw", "db");
+
+export interface EventRecord {
+  timestamp: number;
+  type: string;
+  taskId?: string;
+  message: string;
+}
 
 interface DBSchema {
   tasks: TaskRecord[];
   earnings: EarningRecord[];
   executions: ExecutionRecord[];
   knowledge: KnowledgeRecord[];
+  events: EventRecord[];
   meta: { lastUpdated: number; totalEarningsUsd: number; totalTasksExecuted: number; totalTasksDiscovered: number };
-}
-
-export interface TaskRecord {
-  id: string;
-  source: string;
-  title: string;
-  url: string;
-  status: "discovered" | "queued" | "executing" | "submitted" | "completed" | "failed" | "skipped";
-  discoveredAt: number;
-  executedAt?: number;
-  submittedAt?: number;
-  completedAt?: number;
-  earnedUsd?: number;
-  solutionSnippet?: string;
-  errorMsg?: string;
-  retries: number;
-}
-
-export interface EarningRecord {
-  id: string;
-  taskId: string;
-  source: string;
-  amountUsd: number;
-  title: string;
-  timestamp: number;
-  payoutStatus: "pending_escrow" | "verified_transferred" | "failed";
-  destinationWallet: string;
-  verifiedAt?: number;
-  txHash?: string;
-}
-
-export interface ExecutionRecord {
-  taskId: string;
-  startedAt: number;
-  completedAt: number;
-  turns: number;
-  toolsUsed: string[];
-  success: boolean;
-  errorMsg?: string;
-}
-
-export interface KnowledgeRecord {
-  id: string;
-  topic: string;
-  insight: string;
-  source: string;
-  timestamp: number;
 }
 
 const DEFAULT_DB: DBSchema = {
@@ -77,6 +39,7 @@ const DEFAULT_DB: DBSchema = {
   earnings: [],
   executions: [],
   knowledge: [],
+  events: [],
   meta: { lastUpdated: 0, totalEarningsUsd: 0, totalTasksExecuted: 0, totalTasksDiscovered: 0 },
 };
 
@@ -85,31 +48,37 @@ let db: DBSchema | null = null;
 let dirty = false;
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
 
-function getDbPath(table: string): string {
-  return path.join(DB_DIR, `${table}.json`);
+function ensureDirs(): void {
+  if (!fs.existsSync(PROJECT_DB_DIR)) {
+    try { fs.mkdirSync(PROJECT_DB_DIR, { recursive: true }); } catch {}
+  }
+  if (!fs.existsSync(HOME_DB_DIR)) {
+    try { fs.mkdirSync(HOME_DB_DIR, { recursive: true }); } catch {}
+  }
 }
 
-function ensureDir(): void {
-  if (!fs.existsSync(DB_DIR)) {
-    fs.mkdirSync(DB_DIR, { recursive: true });
-  }
+function getDbPath(dir: string, table: string): string {
+  return path.join(dir, `${table}.json`);
 }
 
 function loadDb(): DBSchema {
   if (db) return db;
-  ensureDir();
+  ensureDirs();
   
   db = { ...DEFAULT_DB };
   
-  for (const table of ["tasks", "earnings", "executions", "knowledge", "meta"] as const) {
-    const filePath = getDbPath(table);
+  for (const table of ["tasks", "earnings", "executions", "knowledge", "events", "meta"] as const) {
+    const projPath = getDbPath(PROJECT_DB_DIR, table);
+    const homePath = getDbPath(HOME_DB_DIR, table);
+    
+    let targetPath = fs.existsSync(projPath) ? projPath : (fs.existsSync(homePath) ? homePath : null);
+    
     try {
-      if (fs.existsSync(filePath)) {
-        const raw = fs.readFileSync(filePath, "utf-8");
+      if (targetPath) {
+        const raw = fs.readFileSync(targetPath, "utf-8");
         (db as any)[table] = JSON.parse(raw);
       }
     } catch {
-      // Corrupted file — start fresh for this table
       console.warn(`[DB] Warning: ${table}.json corrupted, using defaults`);
     }
   }
@@ -120,25 +89,28 @@ function loadDb(): DBSchema {
 function scheduleSave(): void {
   dirty = true;
   if (flushTimer) return;
-  // Debounce: flush to disk every 2 seconds max
   flushTimer = setTimeout(() => {
     flushTimer = null;
     if (dirty) flushToDisk();
-  }, 2000);
+  }, 1000);
 }
 
 function flushToDisk(): void {
   if (!db) return;
-  ensureDir();
+  ensureDirs();
   dirty = false;
   
   db.meta.lastUpdated = Date.now();
   
-  for (const table of ["tasks", "earnings", "executions", "knowledge", "meta"] as const) {
-    try {
-      fs.writeFileSync(getDbPath(table), JSON.stringify((db as any)[table], null, 2));
-    } catch (err) {
-      console.warn(`[DB] Write error for ${table}:`, err);
+  for (const table of ["tasks", "earnings", "executions", "knowledge", "events", "meta"] as const) {
+    const content = JSON.stringify((db as any)[table], null, 2);
+    // Sync to both project directory and home directory
+    for (const dir of [PROJECT_DB_DIR, HOME_DB_DIR]) {
+      try {
+        fs.writeFileSync(getDbPath(dir, table), content);
+      } catch (err) {
+        // Fallback ignore if write permissions differ
+      }
     }
   }
 }
@@ -304,6 +276,24 @@ export function dbStoreKnowledge(record: KnowledgeRecord): void {
 
 export function dbGetKnowledge(): KnowledgeRecord[] {
   return loadDb().knowledge;
+}
+
+// ==================== EVENT LOG ====================
+
+export function dbRecordEvent(event: EventRecord): void {
+  const data = loadDb();
+  if (!data.events) data.events = [];
+  data.events.push(event);
+  if (data.events.length > 500) {
+    data.events = data.events.slice(-500);
+  }
+  scheduleSave();
+}
+
+export function dbGetAllEvents(limit = 100): EventRecord[] {
+  const data = loadDb();
+  if (!data.events) return [];
+  return data.events.slice(-limit);
 }
 
 // ==================== STATS ====================

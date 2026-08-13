@@ -14,6 +14,10 @@ import {
   dbLogExecution,
   dbGetStats,
   dbGetTaskById,
+  dbRecordDiscovery,
+  dbGetAllTasks,
+  dbRecordEvent,
+  dbGetAllEvents,
 } from "./memory/db.js";
 
 export interface HeartbeatState {
@@ -81,12 +85,41 @@ export function createHeartbeat(
   // Track consecutive 429s to detect sustained outage
   let consecutive429s = 0;
 
+  function hydrateStateFromDb() {
+    try {
+      const storedTasks = dbGetAllTasks(1000);
+      for (const st of storedTasks) {
+        if (!state.activeTasks.has(st.id)) {
+          state.activeTasks.set(st.id, {
+            id: st.id,
+            task: st.title,
+            status: st.status as any,
+            quotedPriceWei: st.earnedUsd ? String(st.earnedUsd) : undefined,
+            result: st.solutionSnippet,
+            clientAddress: st.source,
+          });
+        }
+      }
+    } catch {}
+
+    try {
+      const storedEvents = dbGetAllEvents(300);
+      if (storedEvents && storedEvents.length > 0) {
+        state.events = storedEvents as ActivityEvent[];
+      }
+    } catch {}
+  }
+
+  // Hydrate stored DB tasks and events on startup
+  hydrateStateFromDb();
+
   function emit(event: Omit<ActivityEvent, "timestamp">) {
     const full: ActivityEvent = { ...event, timestamp: Date.now() };
     state.events.push(full);
     if (state.events.length > 300) {
       state.events = state.events.slice(-300);
     }
+    dbRecordEvent(full);
     for (const fn of listeners) fn(full);
   }
 
@@ -155,6 +188,20 @@ export function createHeartbeat(
   // --- AGGRESSIVE TASK EXECUTION ENGINE ---
 
   function handleTaskEvent(task: Task) {
+    // Save/update in database so status survives restarts and redeployments
+    try {
+      dbRecordDiscovery({
+        id: task.id,
+        source: task.clientAddress || "moltlaunch",
+        title: task.task,
+        url: task.id,
+      });
+      dbUpdateTaskStatus(task.id, task.status as any, {
+        earnedUsd: task.quotedPriceWei ? Number(task.quotedPriceWei) : undefined,
+        solutionSnippet: task.result,
+      });
+    } catch {}
+
     if (TERMINAL_STATUSES.has(task.status)) {
       if (task.status === "completed" && task.ratedScore !== undefined) {
         handleCompleted(task);

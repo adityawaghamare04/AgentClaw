@@ -34,6 +34,7 @@ import {
   dbConfirmWalletTransfer,
   dbRecordEarning,
   dbGetAllTasks,
+  dbGetAllEvents,
 } from "./memory/db.js";
 
 const PORT = Number(process.env.AGENTCLAW_PORT || process.env.CASHCLAW_PORT || process.env.PORT) || 3777;
@@ -242,7 +243,7 @@ function handleApi(
 
     case "/api/tasks": {
       const activeTasksMap = ctx.heartbeat.state.activeTasks;
-      const dbTasks = dbGetAllTasks(100);
+      const dbTasks = dbGetAllTasks(1000);
       const mergedMap = new Map<string, any>();
 
       // Populate DB tasks first
@@ -268,9 +269,13 @@ function handleApi(
         });
       }
 
+      const currentEvents = ctx.heartbeat.state.events.length > 0
+        ? ctx.heartbeat.state.events
+        : dbGetAllEvents(100);
+
       json(res, {
         tasks: Array.from(mergedMap.values()),
-        events: ctx.heartbeat.state.events.slice(-50),
+        events: currentEvents.slice(-50),
       });
       break;
     }
