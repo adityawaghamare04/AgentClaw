@@ -25,6 +25,53 @@ export interface EventRecord {
   message: string;
 }
 
+export interface TaskRecord {
+  id: string;
+  source: string;
+  title: string;
+  url: string;
+  status: "discovered" | "queued" | "executing" | "submitted" | "completed" | "failed" | "skipped";
+  discoveredAt: number;
+  executedAt?: number;
+  submittedAt?: number;
+  completedAt?: number;
+  earnedUsd?: number;
+  solutionSnippet?: string;
+  errorMsg?: string;
+  retries: number;
+}
+
+export interface EarningRecord {
+  id: string;
+  taskId: string;
+  source: string;
+  amountUsd: number;
+  title: string;
+  timestamp: number;
+  payoutStatus: "pending_escrow" | "verified_transferred" | "failed";
+  destinationWallet: string;
+  verifiedAt?: number;
+  txHash?: string;
+}
+
+export interface ExecutionRecord {
+  taskId: string;
+  startedAt: number;
+  completedAt: number;
+  turns: number;
+  toolsUsed: string[];
+  success: boolean;
+  errorMsg?: string;
+}
+
+export interface KnowledgeRecord {
+  id: string;
+  topic: string;
+  insight: string;
+  source: string;
+  timestamp: number;
+}
+
 interface DBSchema {
   tasks: TaskRecord[];
   earnings: EarningRecord[];

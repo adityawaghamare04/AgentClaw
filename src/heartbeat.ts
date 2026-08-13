@@ -92,6 +92,7 @@ export function createHeartbeat(
         if (!state.activeTasks.has(st.id)) {
           state.activeTasks.set(st.id, {
             id: st.id,
+            agentId: config.agentId || "agent_claw",
             task: st.title,
             status: st.status as any,
             quotedPriceWei: st.earnedUsd ? String(st.earnedUsd) : undefined,

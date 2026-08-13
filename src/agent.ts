@@ -369,6 +369,7 @@ function handleApi(
           json(res, { error: "Invalid body" }, 400);
         }
       });
+      break;
     case "/api/revenue":
       json(res, {
         confirmedRevenue: dbGetTotalEarnings(),
@@ -389,7 +390,7 @@ function handleApi(
           }
           const result = dbConfirmWalletTransfer(body.earningId, body.txHash);
           if (!result) {
-            json(res, { error: "Earning record not found" }, 44);
+            json(res, { error: "Earning record not found" }, 404);
             return;
           }
           json(res, { ok: true, record: result.record, survivalState: result.survivalState });
