@@ -465,15 +465,17 @@ export function createLLMProvider(config: LLMConfig): LLMProvider {
     });
   }
 
-  // 3. OpenRouter Provider (Only if explicitly set as provider)
-  if (config.provider === "openrouter" && config.apiKey && config.apiKey.startsWith("sk-or-")) {
+  // 3. Tertiary: OpenRouter Provider (if key exists)
+  if (openRouterKey) {
+    const openRouterModel = config.model && !config.model.includes("gemini") ? config.model : "nvidia/nemotron-3-ultra-550b-a55b:free";
     const openRouterConfig: LLMConfig = {
       ...config,
       provider: "openrouter",
-      apiKey: config.apiKey,
+      apiKey: openRouterKey,
+      model: openRouterModel,
     };
     cascadeList.push({
-      name: `OpenRouter (${config.model})`,
+      name: `OpenRouter (${openRouterModel})`,
       provider: createOpenAICompatibleProvider(openRouterConfig, "https://openrouter.ai/api/v1"),
     });
   }

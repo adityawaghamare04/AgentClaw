@@ -1,0 +1,112 @@
+[
+  {
+    "type": "poll",
+    "message": "Polled inbox: 0 task(s)",
+    "timestamp": 1786633667314
+  },
+  {
+    "type": "ws",
+    "message": "WebSocket disconnected — HTTP polling active",
+    "timestamp": 1786633667933
+  },
+  {
+    "type": "poll",
+    "message": "Polled inbox: 132 task(s)",
+    "timestamp": 1786633697320
+  },
+  {
+    "type": "exec",
+    "taskId": "gh_5137531720",
+    "message": "⚡ EXECUTING: [GitHub Bounty Issues] Capture a macOS Safari compatibility evidence bundle — UR",
+    "timestamp": 1786633697321
+  },
+  {
+    "type": "exec",
+    "taskId": "gh_5136344809",
+    "message": "⚡ EXECUTING: [GitHub Bounty Issues] [radar] SN open bounty 2026-08-12T23:53 — URL: https://gi",
+    "timestamp": 1786633697327
+  },
+  {
+    "type": "exec",
+    "taskId": "gh_5136009189",
+    "message": "⚡ EXECUTING: [GitHub Bounty Issues] [radar] SN open bounty 2026-08-12T22:54 — URL: https://gi",
+    "timestamp": 1786633697328
+  },
+  {
+    "type": "exec",
+    "taskId": "gh_5135643663",
+    "message": "⚡ EXECUTING: [GitHub Bounty Issues] [radar] SN open bounty 2026-08-12T21:56 — URL: https://gi",
+    "timestamp": 1786633697330
+  },
+  {
+    "type": "exec",
+    "taskId": "gh_5135246651",
+    "message": "⚡ EXECUTING: [GitHub Bounty Issues] [radar] SN open bounty 2026-08-12T20:57 — URL: https://gi",
+    "timestamp": 1786633697333
+  },
+  {
+    "type": "poll",
+    "message": "Polled inbox: 0 task(s)",
+    "timestamp": 1786633701894
+  },
+  {
+    "type": "ws",
+    "message": "WebSocket disconnected — HTTP polling active",
+    "timestamp": 1786633701903
+  },
+  {
+    "type": "poll",
+    "message": "Polled inbox: 132 task(s)",
+    "timestamp": 1786633711898
+  },
+  {
+    "type": "exec",
+    "taskId": "gh_5137531720",
+    "message": "⚡ EXECUTING: [GitHub Bounty Issues] Capture a macOS Safari compatibility evidence bundle — UR",
+    "timestamp": 1786633711899
+  },
+  {
+    "type": "exec",
+    "taskId": "gh_5136344809",
+    "message": "⚡ EXECUTING: [GitHub Bounty Issues] [radar] SN open bounty 2026-08-12T23:53 — URL: https://gi",
+    "timestamp": 1786633711903
+  },
+  {
+    "type": "exec",
+    "taskId": "gh_5136009189",
+    "message": "⚡ EXECUTING: [GitHub Bounty Issues] [radar] SN open bounty 2026-08-12T22:54 — URL: https://gi",
+    "timestamp": 1786633711905
+  },
+  {
+    "type": "exec",
+    "taskId": "gh_5135643663",
+    "message": "⚡ EXECUTING: [GitHub Bounty Issues] [radar] SN open bounty 2026-08-12T21:56 — URL: https://gi",
+    "timestamp": 1786633711907
+  },
+  {
+    "type": "exec",
+    "taskId": "gh_5135246651",
+    "message": "⚡ EXECUTING: [GitHub Bounty Issues] [radar] SN open bounty 2026-08-12T20:57 — URL: https://gi",
+    "timestamp": 1786633711909
+  },
+  {
+    "type": "poll",
+    "message": "Polled inbox: 132 task(s)",
+    "timestamp": 1786633721923
+  },
+  {
+    "type": "poll",
+    "message": "Polled inbox: 132 task(s)",
+    "timestamp": 1786633731932
+  },
+  {
+    "type": "poll",
+    "message": "Polled inbox: 132 task(s)",
+    "timestamp": 1786633741950
+  },
+  {
+    "type": "poll",
+    "message": "Polled inbox: 132 task(s)",
+    "timestamp": 1786633751965
+  }
+]

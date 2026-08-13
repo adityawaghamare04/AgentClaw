@@ -1,0 +1,1195 @@
+[
+  {
+    "id": "gh_5137531720",
+    "source": "GitHub Bounty Issues",
+    "title": "Capture a macOS Safari compatibility evidence bundle",
+    "url": "https://github.com/NSPG13/agent-bounties/issues/927",
+    "status": "requested",
+    "discoveredAt": 1786633672350,
+    "retries": 0,
+    "executedAt": 1786633711900
+  },
+  {
+    "id": "gh_5136344809",
+    "source": "GitHub Bounty Issues",
+    "title": "[radar] SN open bounty 2026-08-12T23:53",
+    "url": "https://github.com/relayhop/sn-monetization-runtime/issues/336",
+    "status": "requested",
+    "discoveredAt": 1786633672353,
+    "retries": 0,
+    "executedAt": 1786633711904
+  },
+  {
+    "id": "gh_5136009189",
+    "source": "GitHub Bounty Issues",
+    "title": "[radar] SN open bounty 2026-08-12T22:54",
+    "url": "https://github.com/relayhop/sn-monetization-runtime/issues/335",
+    "status": "requested",
+    "discoveredAt": 1786633672354,
+    "retries": 0,
+    "executedAt": 1786633711906
+  },
+  {
+    "id": "gh_5135643663",
+    "source": "GitHub Bounty Issues",
+    "title": "[radar] SN open bounty 2026-08-12T21:56",
+    "url": "https://github.com/relayhop/sn-monetization-runtime/issues/334",
+    "status": "requested",
+    "discoveredAt": 1786633672355,
+    "retries": 0,
+    "executedAt": 1786633711908
+  },
+  {
+    "id": "gh_5135246651",
+    "source": "GitHub Bounty Issues",
+    "title": "[radar] SN open bounty 2026-08-12T20:57",
+    "url": "https://github.com/relayhop/sn-monetization-runtime/issues/333",
+    "status": "requested",
+    "discoveredAt": 1786633672356,
+    "retries": 0,
+    "executedAt": 1786633711909
+  },
+  {
+    "id": "gh_5134454206",
+    "source": "GitHub Bounty Issues",
+    "title": "[radar] SN open bounty 2026-08-12T19:15",
+    "url": "https://github.com/relayhop/sn-monetization-runtime/issues/332",
+    "status": "requested",
+    "discoveredAt": 1786633672357,
+    "retries": 0
+  },
+  {
+    "id": "gh_5134075477",
+    "source": "GitHub Bounty Issues",
+    "title": "test",
+    "url": "https://github.com/yavorl/test-repo-staging/issues/15",
+    "status": "requested",
+    "discoveredAt": 1786633672358,
+    "retries": 0
+  },
+  {
+    "id": "gh_5133907569",
+    "source": "GitHub Bounty Issues",
+    "title": "Bounty (2 USDC/month): a non-datacenter egress for our own announcements",
+    "url": "https://github.com/eirik-rune/runemap/issues/39",
+    "status": "requested",
+    "discoveredAt": 1786633672358,
+    "retries": 0
+  },
+  {
+    "id": "gh_5133855898",
+    "source": "GitHub Bounty Issues",
+    "title": "[radar] SN open bounty 2026-08-12T18:04",
+    "url": "https://github.com/relayhop/sn-monetization-runtime/issues/331",
+    "status": "requested",
+    "discoveredAt": 1786633672360,
+    "retries": 0
+  },
+  {
+    "id": "gh_5133383162",
+    "source": "GitHub Bounty Issues",
+    "title": "[radar] SN open bounty 2026-08-12T17:06",
+    "url": "https://github.com/relayhop/sn-monetization-runtime/issues/330",
+    "status": "requested",
+    "discoveredAt": 1786633672361,
+    "retries": 0
+  },
+  {
+    "id": "gh_5132735687",
+    "source": "GitHub Bounty Issues",
+    "title": "🎯 Prevent silent fallback to unauthenticated API requests when keyring lookup fails",
+    "url": "https://github.com/CinnamonFaldet48/cli/issues/3",
+    "status": "requested",
+    "discoveredAt": 1786633672361,
+    "retries": 0
+  },
+  {
+    "id": "gh_5132358061",
+    "source": "GitHub Bounty Issues",
+    "title": "[radar] SN open bounty 2026-08-12T15:08",
+    "url": "https://github.com/relayhop/sn-monetization-runtime/issues/329",
+    "status": "requested",
+    "discoveredAt": 1786633672362,
+    "retries": 0
+  },
+  {
+    "id": "gh_5131496762",
+    "source": "GitHub Bounty Issues",
+    "title": "[radar] SN open bounty 2026-08-12T13:37",
+    "url": "https://github.com/relayhop/sn-monetization-runtime/issues/328",
+    "status": "requested",
+    "discoveredAt": 1786633672363,
+    "retries": 0
+  },
+  {
+    "id": "gh_5130585196",
+    "source": "GitHub Bounty Issues",
+    "title": "[radar] SN open bounty 2026-08-12T11:54",
+    "url": "https://github.com/relayhop/sn-monetization-runtime/issues/327",
+    "status": "requested",
+    "discoveredAt": 1786633672364,
+    "retries": 0
+  },
+  {
+    "id": "gh_5129778808",
+    "source": "GitHub Bounty Issues",
+    "title": "[radar] SN open bounty 2026-08-12T10:16",
+    "url": "https://github.com/relayhop/sn-monetization-runtime/issues/326",
+    "status": "requested",
+    "discoveredAt": 1786633672364,
+    "retries": 0
+  },
+  {
+    "id": "gh_5142815749",
+    "source": "GitHub Help-Wanted Issues",
+    "title": "Typewriter Text Effect",
+    "url": "https://github.com/SAPTARSHI-coder/EaseMotion-css/issues/81798",
+    "status": "requested",
+    "discoveredAt": 1786633672365,
+    "retries": 0
+  },
+  {
+    "id": "gh_5142812337",
+    "source": "GitHub Help-Wanted Issues",
+    "title": "Add an adapter for mssql (SQL Server)",
+    "url": "https://github.com/Truta446/nplusone/issues/20",
+    "status": "requested",
+    "discoveredAt": 1786633672365,
+    "retries": 0
+  },
+  {
+    "id": "gh_5142809928",
+    "source": "GitHub Help-Wanted Issues",
+    "title": "feat: Add Circular Progress Ring animation component",
+    "url": "https://github.com/SAPTARSHI-coder/EaseMotion-css/issues/81796",
+    "status": "requested",
+    "discoveredAt": 1786633672366,
+    "retries": 0
+  },
+  {
+    "id": "gh_5142808762",
+    "source": "GitHub Help-Wanted Issues",
+    "title": "feat: Add Animated Toggle Switch animation component",
+    "url": "https://github.com/SAPTARSHI-coder/EaseMotion-css/issues/81795",
+    "status": "requested",
+    "discoveredAt": 1786633672367,
+    "retries": 0
+  },
+  {
+    "id": "gh_5142808831",
+    "source": "GitHub Help-Wanted Issues",
+    "title": "Show the differing values on an N+1 finding, so it can be reproduced",
+    "url": "https://github.com/Truta446/nplusone/issues/19",
+    "status": "requested",
+    "discoveredAt": 1786633672368,
+    "retries": 0
+  },
+  {
+    "id": "gh_5142808644",
+    "source": "GitHub Help-Wanted Issues",
+    "title": "Issue #1: Add Real AI Blueprint Generation",
+    "url": "https://github.com/devmaster1987/reality-compiler/issues/1",
+    "status": "requested",
+    "discoveredAt": 1786633672368,
+    "retries": 0
+  },
+  {
+    "id": "gh_5142807671",
+    "source": "GitHub Help-Wanted Issues",
+    "title": "feat: Add Glitch Text Effect animation component",
+    "url": "https://github.com/SAPTARSHI-coder/EaseMotion-css/issues/81794",
+    "status": "requested",
+    "discoveredAt": 1786633672369,
+    "retries": 0
+  },
+  {
+    "id": "gh_5142806620",
+    "source": "GitHub Help-Wanted Issues",
+    "title": "feat: Add Magnetic Hover Button animation component",
+    "url": "https://github.com/SAPTARSHI-coder/EaseMotion-css/issues/81793",
+    "status": "requested",
+    "discoveredAt": 1786633672370,
+    "retries": 0
+  },
+  {
+    "id": "gh_5142806043",
+    "source": "GitHub Help-Wanted Issues",
+    "title": "feat: Add Wave Divider animation component",
+    "url": "https://github.com/SAPTARSHI-coder/EaseMotion-css/issues/81792",
+    "status": "requested",
+    "discoveredAt": 1786633672370,
+    "retries": 0
+  },
+  {
+    "id": "gh_5142805891",
+    "source": "GitHub Help-Wanted Issues",
+    "title": "Measure whether Sequelize, MikroORM and TypeORM lose the call site — and document the answer",
+    "url": "https://github.com/Truta446/nplusone/issues/18",
+    "status": "requested",
+    "discoveredAt": 1786633672371,
+    "retries": 0
+  },
+  {
+    "id": "gh_5142805642",
+    "source": "GitHub Help-Wanted Issues",
+    "title": "feat: Add Falling Snow animation component",
+    "url": "https://github.com/SAPTARSHI-coder/EaseMotion-css/issues/81791",
+    "status": "requested",
+    "discoveredAt": 1786633672372,
+    "retries": 0
+  },
+  {
+    "id": "gh_5142804961",
+    "source": "GitHub Help-Wanted Issues",
+    "title": "feat: Add 3D Press Button animation component",
+    "url": "https://github.com/SAPTARSHI-coder/EaseMotion-css/issues/81790",
+    "status": "requested",
+    "discoveredAt": 1786633672373,
+    "retries": 0
+  },
+  {
+    "id": "gh_5142804512",
+    "source": "GitHub Help-Wanted Issues",
+    "title": "feat: Add Swinging Price Tag animation component",
+    "url": "https://github.com/SAPTARSHI-coder/EaseMotion-css/issues/81789",
+    "status": "requested",
+    "discoveredAt": 1786633672374,
+    "retries": 0
+  },
+  {
+    "id": "gh_5142803943",
+    "source": "GitHub Help-Wanted Issues",
+    "title": "feat: Add Stacked Avatars animation component",
+    "url": "https://github.com/SAPTARSHI-coder/EaseMotion-css/issues/81788",
+    "status": "requested",
+    "discoveredAt": 1786633672374,
+    "retries": 0
+  },
+  {
+    "id": "gh_5142802799",
+    "source": "GitHub Help-Wanted Issues",
+    "title": "feat: Add Step Progress Indicator animation component",
+    "url": "https://github.com/SAPTARSHI-coder/EaseMotion-css/issues/81787",
+    "status": "requested",
+    "discoveredAt": 1786633672375,
+    "retries": 0
+  },
+  {
+    "id": "gh_5142801705",
+    "source": "GitHub Good-First-Issue",
+    "title": "feat: Add Rotating Conic Border animation component",
+    "url": "https://github.com/SAPTARSHI-coder/EaseMotion-css/issues/81786",
+    "status": "requested",
+    "discoveredAt": 1786633672376,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5244177",
+    "source": "Bitcointalk",
+    "title": "ARCS Bounty (85,000 ARX)",
+    "url": "https://bitcointalk.org/index.php?topic=5244177.0",
+    "status": "requested",
+    "discoveredAt": 1786633672376,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5238602",
+    "source": "Bitcointalk",
+    "title": "HackenAI Bounty (1,000,000 HAI)",
+    "url": "https://bitcointalk.org/index.php?topic=5238602",
+    "status": "requested",
+    "discoveredAt": 1786633672377,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5212901",
+    "source": "Bitcointalk",
+    "title": "HEX Bounty (50,000,000 HEX)",
+    "url": "https://bitcointalk.org/index.php?topic=5212901.0",
+    "status": "requested",
+    "discoveredAt": 1786633672378,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5210456",
+    "source": "Bitcointalk",
+    "title": "AMZ Coin Bounty (3,500,000 AMZ)",
+    "url": "https://bitcointalk.org/index.php?topic=5210456",
+    "status": "requested",
+    "discoveredAt": 1786633672378,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5219579",
+    "source": "Bitcointalk",
+    "title": "Optimus Exchange Bounty (900M OPTX)",
+    "url": "https://bitcointalk.org/index.php?topic=5219579.0",
+    "status": "requested",
+    "discoveredAt": 1786633672379,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5194641",
+    "source": "Bitcointalk",
+    "title": "Secured Gold Coin Bounty (300k SGC)",
+    "url": "https://bitcointalk.org/index.php?topic=5194641",
+    "status": "requested",
+    "discoveredAt": 1786633672380,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5224765",
+    "source": "Bitcointalk",
+    "title": "Earnbet Bounty (35,000 XRP)",
+    "url": "https://bitcointalk.org/index.php?topic=5224765.0",
+    "status": "requested",
+    "discoveredAt": 1786633672381,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5238309",
+    "source": "Bitcointalk",
+    "title": "IOI Bounty (160,000 TRX)",
+    "url": "https://bitcointalk.org/index.php?topic=5238309",
+    "status": "requested",
+    "discoveredAt": 1786633672382,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5250951",
+    "source": "Bitcointalk",
+    "title": "HOM Token Bounty (1.28M HOMT)",
+    "url": "https://bitcointalk.org/index.php?topic=5250951.0",
+    "status": "requested",
+    "discoveredAt": 1786633672382,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5197112",
+    "source": "Bitcointalk",
+    "title": "DACX Bounty (2,500,000 DACX)",
+    "url": "https://bitcointalk.org/index.php?topic=5197112",
+    "status": "requested",
+    "discoveredAt": 1786633672383,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5260785",
+    "source": "Bitcointalk",
+    "title": "TerraCredit Bounty (750k CREDIT)",
+    "url": "https://bitcointalk.org/index.php?topic=5260785.0",
+    "status": "requested",
+    "discoveredAt": 1786633672383,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5250950",
+    "source": "Bitcointalk",
+    "title": "Ludena Protocol Bounty (24 ETH)",
+    "url": "https://bitcointalk.org/index.php?topic=5250950.0",
+    "status": "requested",
+    "discoveredAt": 1786633672384,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5281562",
+    "source": "Bitcointalk",
+    "title": "Bounty Detective BNB Bounty (171.69 BNB)",
+    "url": "https://bitcointalk.org/index.php?topic=5281562",
+    "status": "requested",
+    "discoveredAt": 1786633672385,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5256002",
+    "source": "Bitcointalk",
+    "title": "Tozex Bounty (100,000 TOZ)",
+    "url": "https://bitcointalk.org/index.php?topic=5256002.0",
+    "status": "requested",
+    "discoveredAt": 1786633672385,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5230013",
+    "source": "Bitcointalk",
+    "title": "Crypto Commonwealth Bounty (1.36M CBND)",
+    "url": "https://bitcointalk.org/index.php?topic=5230013",
+    "status": "requested",
+    "discoveredAt": 1786633672386,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5225201",
+    "source": "Bitcointalk",
+    "title": "Gaimin Bounty (10M GMRX)",
+    "url": "https://bitcointalk.org/index.php?topic=5225201.0",
+    "status": "requested",
+    "discoveredAt": 1786633672386,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5267259",
+    "source": "Bitcointalk",
+    "title": "Candela Coin Bounty (4M CLA)",
+    "url": "https://bitcointalk.org/index.php?topic=5267259",
+    "status": "requested",
+    "discoveredAt": 1786633672387,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5276715",
+    "source": "Bitcointalk",
+    "title": "Invizion Bounty (100k NVZN)",
+    "url": "https://bitcointalk.org/index.php?topic=5276715",
+    "status": "requested",
+    "discoveredAt": 1786633672388,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5286632",
+    "source": "Bitcointalk",
+    "title": "HEX Bounty Round 2 (3.26M HEX)",
+    "url": "https://bitcointalk.org/index.php?topic=5286632",
+    "status": "requested",
+    "discoveredAt": 1786633672389,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5294605",
+    "source": "Bitcointalk",
+    "title": "Student Coin 1st Phase (3.23M STC)",
+    "url": "https://bitcointalk.org/index.php?topic=5294605",
+    "status": "requested",
+    "discoveredAt": 1786633672389,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5293754",
+    "source": "Bitcointalk",
+    "title": "MeleCoin Bounty (28,571 MLC)",
+    "url": "https://bitcointalk.org/index.php?topic=5293754",
+    "status": "requested",
+    "discoveredAt": 1786633672390,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5300575",
+    "source": "Bitcointalk",
+    "title": "Gaimin Bounty Round 2 (200k GMRX)",
+    "url": "https://bitcointalk.org/index.php?topic=5300575",
+    "status": "requested",
+    "discoveredAt": 1786633672390,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5262143",
+    "source": "Bitcointalk",
+    "title": "CorionX Bounty (5.5M CORX)",
+    "url": "https://bitcointalk.org/index.php?topic=5262143.0",
+    "status": "requested",
+    "discoveredAt": 1786633672391,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5307843",
+    "source": "Bitcointalk",
+    "title": "BCMC Bounty (5M BCMC)",
+    "url": "https://bitcointalk.org/index.php?topic=5307843",
+    "status": "requested",
+    "discoveredAt": 1786633672392,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5251655",
+    "source": "Bitcointalk",
+    "title": "3WM Bounty (2M 3WM)",
+    "url": "https://bitcointalk.org/index.php?topic=5251655",
+    "status": "requested",
+    "discoveredAt": 1786633672392,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5305069",
+    "source": "Bitcointalk",
+    "title": "ETNA Bounty Cyclops Finance (288k ETNA)",
+    "url": "https://bitcointalk.org/index.php?topic=5305069",
+    "status": "requested",
+    "discoveredAt": 1786633672393,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5312627",
+    "source": "Bitcointalk",
+    "title": "TheFutbolCoin Bounty (600k TFC)",
+    "url": "https://bitcointalk.org/index.php?topic=5312627",
+    "status": "requested",
+    "discoveredAt": 1786633672394,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5330978",
+    "source": "Bitcointalk",
+    "title": "Disbalancer Bounty (2,000 USDT)",
+    "url": "https://bitcointalk.org/index.php?topic=5330978.0",
+    "status": "requested",
+    "discoveredAt": 1786633672395,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5333978",
+    "source": "Bitcointalk",
+    "title": "100XCOIN Bounty (1.2T 100XCOIN)",
+    "url": "https://bitcointalk.org/index.php?topic=5333978",
+    "status": "requested",
+    "discoveredAt": 1786633672395,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5335417",
+    "source": "Bitcointalk",
+    "title": "WellBe Coin Bounty (500k WELB)",
+    "url": "https://bitcointalk.org/index.php?topic=5335417",
+    "status": "requested",
+    "discoveredAt": 1786633672396,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5331648",
+    "source": "Bitcointalk",
+    "title": "BitNorm Bounty (1.2M BN)",
+    "url": "https://bitcointalk.org/index.php?topic=5331648",
+    "status": "requested",
+    "discoveredAt": 1786633672397,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5313790",
+    "source": "Bitcointalk",
+    "title": "Kragx DeFi Bounty (1.5M KRX)",
+    "url": "https://bitcointalk.org/index.php?topic=5313790",
+    "status": "requested",
+    "discoveredAt": 1786633672397,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5342419",
+    "source": "Bitcointalk",
+    "title": "Bitop Exchange Bounty ($6,158 BUSD)",
+    "url": "https://bitcointalk.org/index.php?topic=5342419",
+    "status": "requested",
+    "discoveredAt": 1786633672398,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5345498",
+    "source": "Bitcointalk",
+    "title": "BinanceMax Bounty (15B BMax)",
+    "url": "https://bitcointalk.org/index.php?topic=5345498",
+    "status": "requested",
+    "discoveredAt": 1786633672398,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5348485",
+    "source": "Bitcointalk",
+    "title": "Nowl.Finance Bounty (4.5M NOWL + 3BNB)",
+    "url": "https://bitcointalk.org/index.php?topic=5348485",
+    "status": "requested",
+    "discoveredAt": 1786633672399,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5346604",
+    "source": "Bitcointalk",
+    "title": "DeFiFarms Bounty (150k DEFIY)",
+    "url": "https://bitcointalk.org/index.php?topic=5346604",
+    "status": "requested",
+    "discoveredAt": 1786633672400,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5350579",
+    "source": "Bitcointalk",
+    "title": "Bitop Exchange Bounty Phase II (2,000 BUSD)",
+    "url": "https://bitcointalk.org/index.php?topic=5350579.0",
+    "status": "requested",
+    "discoveredAt": 1786633672401,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5341617",
+    "source": "Bitcointalk",
+    "title": "DuiCoin Bounty (30B DUI)",
+    "url": "https://bitcointalk.org/index.php?topic=5341617",
+    "status": "requested",
+    "discoveredAt": 1786633672402,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5348863",
+    "source": "Bitcointalk",
+    "title": "Sonar Bounty ($25,000 PING)",
+    "url": "https://bitcointalk.org/index.php?topic=5348863",
+    "status": "requested",
+    "discoveredAt": 1786633672402,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5312950",
+    "source": "Bitcointalk",
+    "title": "Cook Protocol Bounty (4M COOK)",
+    "url": "https://bitcointalk.org/index.php?topic=5312950",
+    "status": "requested",
+    "discoveredAt": 1786633672403,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5355578",
+    "source": "Bitcointalk",
+    "title": "Genius Token Bounty (4,000 USDT)",
+    "url": "https://bitcointalk.org/index.php?topic=5355578",
+    "status": "requested",
+    "discoveredAt": 1786633672404,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5358071",
+    "source": "Bitcointalk",
+    "title": "DAO.vc Bounty (2,000 USDT)",
+    "url": "https://bitcointalk.org/index.php?topic=5358071",
+    "status": "requested",
+    "discoveredAt": 1786633672404,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5329623",
+    "source": "Bitcointalk",
+    "title": "Grandle DeFi Bounty (500k GRAND)",
+    "url": "https://bitcointalk.org/index.php?topic=5329623",
+    "status": "requested",
+    "discoveredAt": 1786633672405,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5342047",
+    "source": "Bitcointalk",
+    "title": "Getart Bounty (750k GAX)",
+    "url": "https://bitcointalk.org/index.php?topic=5342047",
+    "status": "requested",
+    "discoveredAt": 1786633672405,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5360603",
+    "source": "Bitcointalk",
+    "title": "CoinxPad Bounty (2,000 USDT)",
+    "url": "https://bitcointalk.org/index.php?topic=5360603",
+    "status": "requested",
+    "discoveredAt": 1786633672406,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5320635",
+    "source": "Bitcointalk",
+    "title": "Terracredit R2 Bounty (1.5M CREDIT)",
+    "url": "https://bitcointalk.org/index.php?topic=5320635",
+    "status": "requested",
+    "discoveredAt": 1786633672407,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5360303",
+    "source": "Bitcointalk",
+    "title": "AntEx Bounty (8,000 USDT)",
+    "url": "https://bitcointalk.org/index.php?topic=5360303.0",
+    "status": "requested",
+    "discoveredAt": 1786633672408,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5361062",
+    "source": "Bitcointalk",
+    "title": "Enno Wallet Bounty (10,000 USDN)",
+    "url": "https://bitcointalk.org/index.php?topic=5361062.0",
+    "status": "requested",
+    "discoveredAt": 1786633672409,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5370504",
+    "source": "Bitcointalk",
+    "title": "SportsIcon Bounty (11,500 USDT)",
+    "url": "https://bitcointalk.org/index.php?topic=5370504",
+    "status": "requested",
+    "discoveredAt": 1786633672410,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5373835",
+    "source": "Bitcointalk",
+    "title": "Axl Inu Bounty (15,000 BUSD)",
+    "url": "https://bitcointalk.org/index.php?topic=5373835",
+    "status": "requested",
+    "discoveredAt": 1786633672411,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5382152",
+    "source": "Bitcointalk",
+    "title": "FalconSwaps Phase 1 Bounty (5,000 BUSD)",
+    "url": "https://bitcointalk.org/index.php?topic=5382152",
+    "status": "requested",
+    "discoveredAt": 1786633672412,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5380159",
+    "source": "Bitcointalk",
+    "title": "Traderacemanager Bounty (15,000 BUSD)",
+    "url": "https://bitcointalk.org/index.php?topic=5380159",
+    "status": "requested",
+    "discoveredAt": 1786633672412,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5382864",
+    "source": "Bitcointalk",
+    "title": "MegaBitcoin Bounty (8,000 BUSD)",
+    "url": "https://bitcointalk.org/index.php?topic=5382864",
+    "status": "requested",
+    "discoveredAt": 1786633672413,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5381986",
+    "source": "Bitcointalk",
+    "title": "iK Coin Bounty (2.8M iKC)",
+    "url": "https://bitcointalk.org/index.php?topic=5381986",
+    "status": "requested",
+    "discoveredAt": 1786633672413,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5381374",
+    "source": "Bitcointalk",
+    "title": "WakandaInu Bounty ($15,000 WKD)",
+    "url": "https://bitcointalk.org/index.php?topic=5381374",
+    "status": "requested",
+    "discoveredAt": 1786633672414,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5384369",
+    "source": "Bitcointalk",
+    "title": "CyberTrade Bounty (12,000 BUSD)",
+    "url": "https://bitcointalk.org/index.php?topic=5384369",
+    "status": "requested",
+    "discoveredAt": 1786633672415,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5381218",
+    "source": "Bitcointalk",
+    "title": "Survive Bounty (1.5B SURV)",
+    "url": "https://bitcointalk.org/index.php?topic=5381218",
+    "status": "requested",
+    "discoveredAt": 1786633672416,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5399041",
+    "source": "Bitcointalk",
+    "title": "Medic Doge Bounty (277M MEDOGE)",
+    "url": "https://bitcointalk.org/index.php?topic=5399041",
+    "status": "requested",
+    "discoveredAt": 1786633672417,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5396012",
+    "source": "Bitcointalk",
+    "title": "MetaFarm Verse Bounty (10M METV)",
+    "url": "https://bitcointalk.org/index.php?topic=5396012",
+    "status": "requested",
+    "discoveredAt": 1786633672417,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5389820",
+    "source": "Bitcointalk",
+    "title": "G4GCoin Bounty (143k G4G)",
+    "url": "https://bitcointalk.org/index.php?topic=5389820",
+    "status": "requested",
+    "discoveredAt": 1786633672418,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5396335",
+    "source": "Bitcointalk",
+    "title": "REX NFTs Bounty (37.5M REX)",
+    "url": "https://bitcointalk.org/index.php?topic=5396335",
+    "status": "requested",
+    "discoveredAt": 1786633672418,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5392496",
+    "source": "Bitcointalk",
+    "title": "8V Global Bounty (8,000 BUSD)",
+    "url": "https://bitcointalk.org/index.php?topic=54392496",
+    "status": "requested",
+    "discoveredAt": 1786633672419,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5398660",
+    "source": "Bitcointalk",
+    "title": "Kleks Academy Bounty (4,000 BUSD)",
+    "url": "https://bitcointalk.org/index.php?topic=5398660",
+    "status": "requested",
+    "discoveredAt": 1786633672420,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5392829",
+    "source": "Bitcointalk",
+    "title": "INCI.Finance Bounty (750k INCI)",
+    "url": "https://bitcointalk.org/index.php?topic=5392829",
+    "status": "requested",
+    "discoveredAt": 1786633672420,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5397406",
+    "source": "Bitcointalk",
+    "title": "Cylum Finance Bounty (300k CYM)",
+    "url": "https://bitcointalk.org/index.php?topic=5397406",
+    "status": "requested",
+    "discoveredAt": 1786633672421,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5405275",
+    "source": "Bitcointalk",
+    "title": "Metaple Finance Bounty (5,415 BUSD)",
+    "url": "https://bitcointalk.org/index.php?topic=5405275",
+    "status": "requested",
+    "discoveredAt": 1786633672422,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5405105",
+    "source": "Bitcointalk",
+    "title": "Fusotao Bounty (4,000 BUSD)",
+    "url": "https://bitcointalk.org/index.php?topic=5405105",
+    "status": "requested",
+    "discoveredAt": 1786633672423,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5406712",
+    "source": "Bitcointalk",
+    "title": "Lovely Swap Bounty (12,000 LST)",
+    "url": "https://bitcointalk.org/index.php?topic=5406712",
+    "status": "requested",
+    "discoveredAt": 1786633672424,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5414595",
+    "source": "Bitcointalk",
+    "title": "Ariva Wonderland Bounty (10,000 BUSD)",
+    "url": "https://bitcointalk.org/index.php?topic=5414595",
+    "status": "requested",
+    "discoveredAt": 1786633672425,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5414962",
+    "source": "Bitcointalk",
+    "title": "Saratoga Bounty (10M SRT)",
+    "url": "https://bitcointalk.org/index.php?topic=5414962",
+    "status": "requested",
+    "discoveredAt": 1786633672425,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5418650",
+    "source": "Bitcointalk",
+    "title": "Stretch To Earn Bounty (4,000 BUSD)",
+    "url": "https://bitcointalk.org/index.php?topic=5418650",
+    "status": "requested",
+    "discoveredAt": 1786633672426,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5419429",
+    "source": "Bitcointalk",
+    "title": "88Token Bounty (4,000 BUSD)",
+    "url": "https://bitcointalk.org/index.php?topic=5419429",
+    "status": "requested",
+    "discoveredAt": 1786633672427,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5430758",
+    "source": "Bitcointalk",
+    "title": "Masa Finance Bounty (4,000 BUSD)",
+    "url": "https://bitcointalk.org/index.php?topic=5430758",
+    "status": "requested",
+    "discoveredAt": 1786633672427,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5432689",
+    "source": "Bitcointalk",
+    "title": "BiB Exchange Bounty (60M BIB)",
+    "url": "https://bitcointalk.org/index.php?topic=5432689",
+    "status": "requested",
+    "discoveredAt": 1786633672428,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5436989",
+    "source": "Bitcointalk",
+    "title": "Altava Bounty (3,500 BUSD)",
+    "url": "https://bitcointalk.org/index.php?topic=5436989",
+    "status": "requested",
+    "discoveredAt": 1786633672429,
+    "retries": 0
+  },
+  {
+    "id": "bitcointalk_5437344",
+    "source": "Bitcointalk",
+    "title": "Black Stallion Bounty (50k BS)",
+    "url": "https://bitcointalk.org/index.php?topic=5437344",
+    "status": "requested",
+    "discoveredAt": 1786633672430,
+    "retries": 0
+  },
+  {
+    "id": "hn_49282022",
+    "source": "Hacker News",
+    "title": "Show HN: Fab Friends a crowdfunding site for Rwandan college students",
+    "url": "https://news.ycombinator.com/item?id=49282022",
+    "status": "requested",
+    "discoveredAt": 1786633672431,
+    "retries": 0
+  },
+  {
+    "id": "hn_49279790",
+    "source": "Hacker News",
+    "title": "Ask HN: How are you finding the job market in 2026?",
+    "url": "https://news.ycombinator.com/item?id=49279790",
+    "status": "requested",
+    "discoveredAt": 1786633672431,
+    "retries": 0
+  },
+  {
+    "id": "hn_49273922",
+    "source": "Hacker News",
+    "title": "Show HN: OJCP – an open protocol for agent-consumable job data",
+    "url": "https://news.ycombinator.com/item?id=49273922",
+    "status": "requested",
+    "discoveredAt": 1786633672432,
+    "retries": 0
+  },
+  {
+    "id": "hn_49230662",
+    "source": "Hacker News",
+    "title": "Show HN: HN Hiring – Search and Filter Who Is Hiring",
+    "url": "https://news.ycombinator.com/item?id=49230662",
+    "status": "requested",
+    "discoveredAt": 1786633672432,
+    "retries": 0
+  },
+  {
+    "id": "hn_49226913",
+    "source": "Hacker News",
+    "title": "Things I learned about how people use AI after 1800 people",
+    "url": "https://news.ycombinator.com/item?id=49226913",
+    "status": "requested",
+    "discoveredAt": 1786633672433,
+    "retries": 0
+  },
+  {
+    "id": "hn_49213554",
+    "source": "Hacker News",
+    "title": "Show HN: Merge – AI-native code review assessments for engineering hiring",
+    "url": "https://news.ycombinator.com/item?id=49213554",
+    "status": "requested",
+    "discoveredAt": 1786633672434,
+    "retries": 0
+  },
+  {
+    "id": "hn_49178026",
+    "source": "Hacker News",
+    "title": "Show HN: Structured search for Who is hiring threads",
+    "url": "https://news.ycombinator.com/item?id=49178026",
+    "status": "requested",
+    "discoveredAt": 1786633672434,
+    "retries": 0
+  },
+  {
+    "id": "hn_49163218",
+    "source": "Hacker News",
+    "title": "Ask HN: Why is the \"Who is hiring?\" post being re-aged?",
+    "url": "https://news.ycombinator.com/item?id=49163218",
+    "status": "requested",
+    "discoveredAt": 1786633672436,
+    "retries": 0
+  },
+  {
+    "id": "hn_49156683",
+    "source": "Hacker News",
+    "title": "Ask HN: Who is hiring? (August 2026)",
+    "url": "https://news.ycombinator.com/item?id=49156683",
+    "status": "requested",
+    "discoveredAt": 1786633672437,
+    "retries": 0
+  },
+  {
+    "id": "hn_49156682",
+    "source": "Hacker News",
+    "title": "Ask HN: Who wants to be hired? (August 2026)",
+    "url": "https://news.ycombinator.com/item?id=49156682",
+    "status": "requested",
+    "discoveredAt": 1786633672437,
+    "retries": 0
+  },
+  {
+    "id": "remotive_2090989",
+    "source": "Remotive",
+    "title": "Assistant Account Payable",
+    "url": "https://remotive.com/remote-jobs/medical/assistant-account-payable-2090989",
+    "status": "requested",
+    "discoveredAt": 1786633672438,
+    "retries": 0
+  },
+  {
+    "id": "remotive_1680495",
+    "source": "Remotive",
+    "title": "Remote Office Assistant",
+    "url": "https://remotive.com/remote-jobs/marketing/remote-office-assistant-1680495",
+    "status": "requested",
+    "discoveredAt": 1786633672439,
+    "retries": 0
+  },
+  {
+    "id": "remotive_2086540",
+    "source": "Remotive",
+    "title": "Inside Sales Contractor",
+    "url": "https://remotive.com/remote-jobs/sales/inside-sales-contractor-2086540",
+    "status": "requested",
+    "discoveredAt": 1786633672440,
+    "retries": 0
+  },
+  {
+    "id": "remotive_2091045",
+    "source": "Remotive",
+    "title": "Tier III Service Desk Engineer",
+    "url": "https://remotive.com/remote-jobs/information-technology/tier-iii-service-desk-engineer-2091045",
+    "status": "requested",
+    "discoveredAt": 1786633672440,
+    "retries": 0
+  },
+  {
+    "id": "remotive_2091088",
+    "source": "Remotive",
+    "title": "Sales Jedi",
+    "url": "https://remotive.com/remote-jobs/sales/sales-jedi-2091088",
+    "status": "requested",
+    "discoveredAt": 1786633672441,
+    "retries": 0
+  },
+  {
+    "id": "remotive_2091087",
+    "source": "Remotive",
+    "title": "SaaS Product Support Jedi",
+    "url": "https://remotive.com/remote-jobs/customer-service/saas-product-support-jedi-2091087",
+    "status": "requested",
+    "discoveredAt": 1786633672442,
+    "retries": 0
+  },
+  {
+    "id": "remotive_1185979",
+    "source": "Remotive",
+    "title": "Freelance Writer",
+    "url": "https://remotive.com/remote-jobs/writing/freelance-writer-1185979",
+    "status": "requested",
+    "discoveredAt": 1786633672443,
+    "retries": 0
+  },
+  {
+    "id": "remotive_1749306",
+    "source": "Remotive",
+    "title": "Freelance Copywriter",
+    "url": "https://remotive.com/remote-jobs/writing/freelance-copywriter-1749306",
+    "status": "requested",
+    "discoveredAt": 1786633672444,
+    "retries": 0
+  },
+  {
+    "id": "remotive_2091081",
+    "source": "Remotive",
+    "title": "Senior Graphic Designer",
+    "url": "https://remotive.com/remote-jobs/design/senior-graphic-designer-2091081",
+    "status": "requested",
+    "discoveredAt": 1786633672445,
+    "retries": 0
+  },
+  {
+    "id": "remotive_2090903",
+    "source": "Remotive",
+    "title": "Data Labeling Specialists",
+    "url": "https://remotive.com/remote-jobs/data/data-labeling-specialists-2090903",
+    "status": "requested",
+    "discoveredAt": 1786633672446,
+    "retries": 0
+  },
+  {
+    "id": "remotive_2091075",
+    "source": "Remotive",
+    "title": "Business Development Representative",
+    "url": "https://remotive.com/remote-jobs/sales/business-development-representative-2091075",
+    "status": "requested",
+    "discoveredAt": 1786633672447,
+    "retries": 0
+  },
+  {
+    "id": "remotive_2091074",
+    "source": "Remotive",
+    "title": "Content Reviewer - United States",
+    "url": "https://remotive.com/remote-jobs/all-others/content-reviewer-united-states-2091074",
+    "status": "requested",
+    "discoveredAt": 1786633672447,
+    "retries": 0
+  },
+  {
+    "id": "remotive_2091069",
+    "source": "Remotive",
+    "title": "Patient Care Specialist",
+    "url": "https://remotive.com/remote-jobs/medical/patient-care-specialist-2091069",
+    "status": "requested",
+    "discoveredAt": 1786633672448,
+    "retries": 0
+  },
+  {
+    "id": "remotive_1919265",
+    "source": "Remotive",
+    "title": "Senior Independent Software Developer",
+    "url": "https://remotive.com/remote-jobs/software-development/senior-independent-software-developer-1919265",
+    "status": "requested",
+    "discoveredAt": 1786633672449,
+    "retries": 0
+  },
+  {
+    "id": "remotive_1919266",
+    "source": "Remotive",
+    "title": "Senior Independent AI Engineer / Architect",
+    "url": "https://remotive.com/remote-jobs/software-development/senior-independent-ai-engineer-architect-1919266",
+    "status": "requested",
+    "discoveredAt": 1786633672451,
+    "retries": 0
+  }
+]
