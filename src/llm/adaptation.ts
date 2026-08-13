@@ -11,11 +11,8 @@ const DEFAULT_FREE_MODELS = [
   "nvidia/nemotron-3-ultra-550b-a55b:free",
   "qwen/qwen-2.5-coder-32b-instruct:free",
   "meta-llama/llama-3.3-70b-instruct:free",
-  "google/gemini-2.0-flash-exp:free",
-  "deepseek/deepseek-r1-distill-llama-70b:free",
-  "mistralai/mistral-7b-instruct:free",
   "meta-llama/llama-3.1-8b-instruct:free",
-  "openchat/openchat-7b:free",
+  "mistralai/mistral-7b-instruct:free",
 ];
 
 // Keywords for models that DO NOT support general tool calling / chat

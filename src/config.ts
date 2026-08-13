@@ -131,19 +131,17 @@ export function loadConfig(): CashClawConfig | null {
   // Environment variable takes highest priority
   let provider = (process.env.LLM_PROVIDER as LLMConfig["provider"]) || undefined;
 
+  // Respect LLM_PROVIDER from env (defaults to gemini if GEMINI_API_KEY is present)
   if (!provider) {
-    if (openrouterKey) {
+    if (process.env.GEMINI_API_KEY) {
+      provider = "gemini";
+    } else if (process.env.GROQ_API_KEY) {
+      provider = "groq";
+    } else if (openrouterKey) {
       provider = "openrouter";
-    } else if (parsed?.llm?.provider && parsed.llm.provider !== "gemini") {
-      provider = parsed.llm.provider;
     } else {
-      provider = "openrouter";
+      provider = "gemini";
     }
-  }
-
-  // Force openrouter if provider resolved to gemini but openrouter key is present
-  if (provider === "gemini" && openrouterKey) {
-    provider = "openrouter";
   }
 
   const envModel = process.env.LLM_MODEL || undefined;
