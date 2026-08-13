@@ -148,6 +148,48 @@ interface OpenAIToolCall {
   function: { name: string; arguments: string };
 }
 
+// ==================== RATE LIMITER ====================
+// Prevents blowing through free tier RPM limits by queuing requests
+class RateLimiter {
+  private queue: Array<{ resolve: () => void }> = [];
+  private activeCount = 0;
+  private timestamps: number[] = [];
+
+  constructor(
+    private readonly maxRpm: number,
+    private readonly maxConcurrent: number,
+  ) {}
+
+  async acquire(): Promise<void> {
+    // Wait until we're under the concurrency cap
+    if (this.activeCount >= this.maxConcurrent) {
+      await new Promise<void>((resolve) => this.queue.push({ resolve }));
+    }
+
+    // Enforce RPM sliding window
+    const now = Date.now();
+    this.timestamps = this.timestamps.filter((t) => now - t < 60_000);
+    if (this.timestamps.length >= this.maxRpm) {
+      const waitMs = 60_000 - (now - this.timestamps[0]) + 100;
+      await new Promise((r) => setTimeout(r, waitMs));
+    }
+
+    this.activeCount++;
+    this.timestamps.push(Date.now());
+  }
+
+  release(): void {
+    this.activeCount--;
+    const next = this.queue.shift();
+    if (next) next.resolve();
+  }
+}
+
+// Provider-specific rate limiters (shared across all calls)
+const geminiLimiter = new RateLimiter(14, 3);   // 14 RPM (buffer from 15), max 3 concurrent
+const groqLimiter = new RateLimiter(28, 3);     // 28 RPM (buffer from 30), max 3 concurrent
+const defaultLimiter = new RateLimiter(50, 5);  // generous defaults for other providers
+
 function createOpenAICompatibleProvider(
   config: LLMConfig,
   baseUrl: string,
@@ -177,6 +219,12 @@ function createOpenAICompatibleProvider(
       }
 
       const isGroq = config.provider === "groq" || baseUrl.includes("groq.com");
+
+      const GEMINI_MODEL_CASCADE = [
+        "gemini-2.0-flash",
+        "gemini-2.0-flash-lite",
+        "gemini-1.5-flash",
+      ];
       const GROQ_MODEL_CASCADE = [
         "llama-3.3-70b-versatile",
         "llama-3.1-8b-instant",
@@ -187,9 +235,14 @@ function createOpenAICompatibleProvider(
       // Build model candidate queue using Autonomous Model Adapter
       const modelQueue = isOpenRouter
         ? autonomousAdapter.getModelQueue(config.model)
+        : isGemini
+        ? GEMINI_MODEL_CASCADE
         : isGroq
         ? GROQ_MODEL_CASCADE
         : [config.model];
+
+      // Select rate limiter by provider
+      const limiter = isGemini ? geminiLimiter : isGroq ? groqLimiter : defaultLimiter;
 
       let lastError: Error | null = null;
 
@@ -206,6 +259,9 @@ function createOpenAICompatibleProvider(
         }
 
         try {
+          // Acquire rate limiter slot before making API call
+          await limiter.acquire();
+
           // Build request URL: Gemini uses ?key= query param, others use Bearer header
           let requestUrl = `${baseUrl}/chat/completions`;
           if (isGemini) {
@@ -214,11 +270,16 @@ function createOpenAICompatibleProvider(
             headers.Authorization = `Bearer ${activeKey}`;
           }
 
-          const res = await fetch(requestUrl, {
-            method: "POST",
-            headers,
-            body: JSON.stringify(body),
-          });
+          let res: Response;
+          try {
+            res = await fetch(requestUrl, {
+              method: "POST",
+              headers,
+              body: JSON.stringify(body),
+            });
+          } finally {
+            limiter.release();
+          }
 
           if (!res.ok) {
             const errText = await res.text();
@@ -379,7 +440,7 @@ export function createLLMProvider(config: LLMConfig): LLMProvider {
 
   // 1. Primary: Gemini Provider (if key exists)
   if (geminiKey) {
-    const geminiModel = config.model && config.model.includes("gemini") ? config.model : "gemini-2.5-flash";
+    const geminiModel = config.model && config.model.includes("gemini") ? config.model : "gemini-2.0-flash";
     const geminiConfig: LLMConfig = {
       ...config,
       provider: "gemini",
