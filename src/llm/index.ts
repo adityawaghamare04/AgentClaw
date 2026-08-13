@@ -205,13 +205,8 @@ function createOpenAICompatibleProvider(
 
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
+        Authorization: `Bearer ${activeKey}`,
       };
-
-      // Gemini API keys (AQ., AIza, etc.) use ?key= query param auth;
-      // all other providers use Authorization: Bearer header
-      if (!isGemini) {
-        headers.Authorization = `Bearer ${activeKey}`;
-      }
 
       if (isOpenRouter) {
         headers["HTTP-Referer"] = "https://cashclaw.dev";
@@ -227,9 +222,9 @@ function createOpenAICompatibleProvider(
       ];
       const GROQ_MODEL_CASCADE = [
         "llama-3.3-70b-versatile",
+        "deepseek-r1-distill-llama-70b",
+        "llama-3.3-70b-specdec",
         "llama-3.1-8b-instant",
-        "mixtral-8x7b-32768",
-        "gemma2-9b-it",
       ];
 
       // Build model candidate queue using Autonomous Model Adapter
@@ -262,13 +257,9 @@ function createOpenAICompatibleProvider(
           // Acquire rate limiter slot before making API call
           await limiter.acquire();
 
-          // Build request URL: Gemini uses ?key= query param, others use Bearer header
-          let requestUrl = `${baseUrl}/chat/completions`;
-          if (isGemini) {
-            requestUrl += `?key=${activeKey}`;
-          } else {
-            headers.Authorization = `Bearer ${activeKey}`;
-          }
+          // Build request URL
+          const requestUrl = `${baseUrl}/chat/completions`;
+          headers.Authorization = `Bearer ${activeKey}`;
 
           let res: Response;
           try {
@@ -300,6 +291,9 @@ function createOpenAICompatibleProvider(
             // Autonomously handle 404 / 410 / 400 model deprecation or non-tool errors
             if (res.status === 404 || res.status === 410 || res.status === 400) {
               autonomousAdapter.reportModelFailure(currentModel, res.status, errText);
+            } else if (res.status === 413) {
+              // Payload too large for this model's context window — cascade to next model
+              console.warn(`[LLM Router] ${currentModel} rejected payload (413 too large). Cascading...`);
             } else if (res.status === 429) {
               // Register 60s temporary cool-off for rate-limited model
               autonomousAdapter.reportRateLimit(currentModel);
