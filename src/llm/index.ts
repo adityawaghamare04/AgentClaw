@@ -161,16 +161,19 @@ class RateLimiter {
   ) {}
 
   async acquire(): Promise<void> {
-    // Wait until we're under the concurrency cap
-    if (this.activeCount >= this.maxConcurrent) {
+    // Wait until we're strictly under the concurrency cap
+    while (this.activeCount >= this.maxConcurrent) {
       await new Promise<void>((resolve) => this.queue.push({ resolve }));
     }
 
-    // Enforce RPM sliding window
-    const now = Date.now();
-    this.timestamps = this.timestamps.filter((t) => now - t < 60_000);
-    if (this.timestamps.length >= this.maxRpm) {
-      const waitMs = 60_000 - (now - this.timestamps[0]) + 100;
+    // Enforce RPM sliding window strictly
+    while (true) {
+      const now = Date.now();
+      this.timestamps = this.timestamps.filter((t) => now - t < 60_000);
+      if (this.timestamps.length < this.maxRpm) {
+        break;
+      }
+      const waitMs = Math.max(100, 60_000 - (now - this.timestamps[0]) + 100);
       await new Promise((r) => setTimeout(r, waitMs));
     }
 

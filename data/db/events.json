@@ -108,5 +108,195 @@
     "type": "poll",
     "message": "Polled inbox: 132 task(s)",
     "timestamp": 1786633751965
+  },
+  {
+    "type": "poll",
+    "message": "Polled inbox: 0 task(s)",
+    "timestamp": 1786634884035
+  },
+  {
+    "type": "ws",
+    "message": "WebSocket disconnected — HTTP polling active",
+    "timestamp": 1786634884802
+  },
+  {
+    "type": "poll",
+    "message": "Polled inbox: 151 task(s)",
+    "timestamp": 1786634894045
+  },
+  {
+    "type": "exec",
+    "taskId": "gh_5137531720",
+    "message": "⚡ EXECUTING: [GitHub Bounty Issues] Capture a macOS Safari compatibility evidence bundle — UR",
+    "timestamp": 1786634894046
+  },
+  {
+    "type": "exec",
+    "taskId": "gh_5136344809",
+    "message": "⚡ EXECUTING: [GitHub Bounty Issues] [radar] SN open bounty 2026-08-12T23:53 — URL: https://gi",
+    "timestamp": 1786634894050
+  },
+  {
+    "type": "exec",
+    "taskId": "gh_5136009189",
+    "message": "⚡ EXECUTING: [GitHub Bounty Issues] [radar] SN open bounty 2026-08-12T22:54 — URL: https://gi",
+    "timestamp": 1786634894051
+  },
+  {
+    "type": "exec",
+    "taskId": "gh_5135643663",
+    "message": "⚡ EXECUTING: [GitHub Bounty Issues] [radar] SN open bounty 2026-08-12T21:56 — URL: https://gi",
+    "timestamp": 1786634894052
+  },
+  {
+    "type": "exec",
+    "taskId": "gh_5135246651",
+    "message": "⚡ EXECUTING: [GitHub Bounty Issues] [radar] SN open bounty 2026-08-12T20:57 — URL: https://gi",
+    "timestamp": 1786634894053
+  },
+  {
+    "type": "poll",
+    "message": "Polled inbox: 151 task(s)",
+    "timestamp": 1786634904062
+  },
+  {
+    "type": "poll",
+    "message": "Polled inbox: 151 task(s)",
+    "timestamp": 1786634914074
+  },
+  {
+    "type": "poll",
+    "message": "Polled inbox: 151 task(s)",
+    "timestamp": 1786634924093
+  },
+  {
+    "type": "poll",
+    "message": "Polled inbox: 151 task(s)",
+    "timestamp": 1786634934102
+  },
+  {
+    "type": "poll",
+    "message": "Polled inbox: 151 task(s)",
+    "timestamp": 1786634944119
+  },
+  {
+    "type": "poll",
+    "message": "Polled inbox: 151 task(s)",
+    "timestamp": 1786634954126
+  },
+  {
+    "type": "poll",
+    "message": "Polled inbox: 151 task(s)",
+    "timestamp": 1786634964145
+  },
+  {
+    "type": "poll",
+    "message": "Polled inbox: 151 task(s)",
+    "timestamp": 1786634974175
+  },
+  {
+    "type": "poll",
+    "message": "Polled inbox: 151 task(s)",
+    "timestamp": 1786634984186
+  },
+  {
+    "type": "poll",
+    "message": "Polled inbox: 151 task(s)",
+    "timestamp": 1786634994191
+  },
+  {
+    "type": "poll",
+    "message": "Polled inbox: 151 task(s)",
+    "timestamp": 1786635004210
+  },
+  {
+    "type": "poll",
+    "message": "Polled inbox: 151 task(s)",
+    "timestamp": 1786635014216
+  },
+  {
+    "type": "poll",
+    "message": "Polled inbox: 151 task(s)",
+    "timestamp": 1786635024232
+  },
+  {
+    "type": "error",
+    "taskId": "gh_5135643663",
+    "message": "❌ Error: LLM API 404: {\"error\":{\"message\":\"No endpoints found for mistralai/mistral-7b-instruct:free.\",\"code\":404},\"user_id\":\"user_3DrvICvT5MLrIVses2a13xbbLJP\"}",
+    "timestamp": 1786635032198
+  },
+  {
+    "type": "poll",
+    "message": "Polled inbox: 151 task(s)",
+    "timestamp": 1786635034237
+  },
+  {
+    "type": "exec",
+    "taskId": "gh_5134454206",
+    "message": "⚡ EXECUTING: [GitHub Bounty Issues] [radar] SN open bounty 2026-08-12T19:15 — URL: https://gi",
+    "timestamp": 1786635034237
+  },
+  {
+    "type": "error",
+    "taskId": "gh_5137531720",
+    "message": "❌ Error: LLM API 404: {\"error\":{\"message\":\"No endpoints found for mistralai/mistral-7b-instruct:free.\",\"code\":404},\"user_id\":\"user_3DrvICvT5MLrIVses2a13xbbLJP\"}",
+    "timestamp": 1786635034414
+  },
+  {
+    "type": "error",
+    "taskId": "gh_5135246651",
+    "message": "❌ Error: LLM API 404: {\"error\":{\"message\":\"No endpoints found for mistralai/mistral-7b-instruct:free.\",\"code\":404},\"user_id\":\"user_3DrvICvT5MLrIVses2a13xbbLJP\"}",
+    "timestamp": 1786635036063
+  },
+  {
+    "type": "error",
+    "taskId": "gh_5136009189",
+    "message": "❌ Error: LLM API 404: {\"error\":{\"message\":\"No endpoints found for mistralai/mistral-7b-instruct:free.\",\"code\":404},\"user_id\":\"user_3DrvICvT5MLrIVses2a13xbbLJP\"}",
+    "timestamp": 1786635036752
+  },
+  {
+    "type": "error",
+    "taskId": "gh_5136344809",
+    "message": "❌ Error: LLM API 404: {\"error\":{\"message\":\"No endpoints found for mistralai/mistral-7b-instruct:free.\",\"code\":404},\"user_id\":\"user_3DrvICvT5MLrIVses2a13xbbLJP\"}",
+    "timestamp": 1786635037155
+  },
+  {
+    "type": "poll",
+    "message": "Polled inbox: 151 task(s)",
+    "timestamp": 1786635044255
+  },
+  {
+    "type": "exec",
+    "taskId": "gh_5134075477",
+    "message": "⚡ EXECUTING: [GitHub Bounty Issues] test — URL: https://github.com/yavorl/test-repo-staging/i",
+    "timestamp": 1786635044255
+  },
+  {
+    "type": "exec",
+    "taskId": "gh_5133907569",
+    "message": "⚡ EXECUTING: [GitHub Bounty Issues] Bounty (2 USDC/month): a non-datacenter egress for our ow",
+    "timestamp": 1786635044256
+  },
+  {
+    "type": "exec",
+    "taskId": "gh_5133855898",
+    "message": "⚡ EXECUTING: [GitHub Bounty Issues] [radar] SN open bounty 2026-08-12T18:04 — URL: https://gi",
+    "timestamp": 1786635044258
+  },
+  {
+    "type": "exec",
+    "taskId": "gh_5133383162",
+    "message": "⚡ EXECUTING: [GitHub Bounty Issues] [radar] SN open bounty 2026-08-12T17:06 — URL: https://gi",
+    "timestamp": 1786635044260
+  },
+  {
+    "type": "poll",
+    "message": "Polled inbox: 151 task(s)",
+    "timestamp": 1786635054281
+  },
+  {
+    "type": "poll",
+    "message": "Polled inbox: 151 task(s)",
+    "timestamp": 1786635064292
   }
 ]

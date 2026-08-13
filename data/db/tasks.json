@@ -6,8 +6,9 @@
     "url": "https://github.com/NSPG13/agent-bounties/issues/927",
     "status": "requested",
     "discoveredAt": 1786633672350,
-    "retries": 0,
-    "executedAt": 1786633711900
+    "retries": 1,
+    "executedAt": 1786634894047,
+    "errorMsg": "LLM API 404: {\"error\":{\"message\":\"No endpoints found for mistralai/mistral-7b-instruct:free.\",\"code\":404},\"user_id\":\"user_3DrvICvT5MLrIVses2a13xbbLJP\"}"
   },
   {
     "id": "gh_5136344809",
@@ -16,8 +17,9 @@
     "url": "https://github.com/relayhop/sn-monetization-runtime/issues/336",
     "status": "requested",
     "discoveredAt": 1786633672353,
-    "retries": 0,
-    "executedAt": 1786633711904
+    "retries": 1,
+    "executedAt": 1786634894051,
+    "errorMsg": "LLM API 404: {\"error\":{\"message\":\"No endpoints found for mistralai/mistral-7b-instruct:free.\",\"code\":404},\"user_id\":\"user_3DrvICvT5MLrIVses2a13xbbLJP\"}"
   },
   {
     "id": "gh_5136009189",
@@ -26,8 +28,9 @@
     "url": "https://github.com/relayhop/sn-monetization-runtime/issues/335",
     "status": "requested",
     "discoveredAt": 1786633672354,
-    "retries": 0,
-    "executedAt": 1786633711906
+    "retries": 1,
+    "executedAt": 1786634894052,
+    "errorMsg": "LLM API 404: {\"error\":{\"message\":\"No endpoints found for mistralai/mistral-7b-instruct:free.\",\"code\":404},\"user_id\":\"user_3DrvICvT5MLrIVses2a13xbbLJP\"}"
   },
   {
     "id": "gh_5135643663",
@@ -36,8 +39,9 @@
     "url": "https://github.com/relayhop/sn-monetization-runtime/issues/334",
     "status": "requested",
     "discoveredAt": 1786633672355,
-    "retries": 0,
-    "executedAt": 1786633711908
+    "retries": 1,
+    "executedAt": 1786634894053,
+    "errorMsg": "LLM API 404: {\"error\":{\"message\":\"No endpoints found for mistralai/mistral-7b-instruct:free.\",\"code\":404},\"user_id\":\"user_3DrvICvT5MLrIVses2a13xbbLJP\"}"
   },
   {
     "id": "gh_5135246651",
@@ -46,8 +50,9 @@
     "url": "https://github.com/relayhop/sn-monetization-runtime/issues/333",
     "status": "requested",
     "discoveredAt": 1786633672356,
-    "retries": 0,
-    "executedAt": 1786633711909
+    "retries": 1,
+    "executedAt": 1786634894054,
+    "errorMsg": "LLM API 404: {\"error\":{\"message\":\"No endpoints found for mistralai/mistral-7b-instruct:free.\",\"code\":404},\"user_id\":\"user_3DrvICvT5MLrIVses2a13xbbLJP\"}"
   },
   {
     "id": "gh_5134454206",
@@ -56,7 +61,8 @@
     "url": "https://github.com/relayhop/sn-monetization-runtime/issues/332",
     "status": "requested",
     "discoveredAt": 1786633672357,
-    "retries": 0
+    "retries": 0,
+    "executedAt": 1786635034238
   },
   {
     "id": "gh_5134075477",
@@ -65,7 +71,8 @@
     "url": "https://github.com/yavorl/test-repo-staging/issues/15",
     "status": "requested",
     "discoveredAt": 1786633672358,
-    "retries": 0
+    "retries": 0,
+    "executedAt": 1786635044256
   },
   {
     "id": "gh_5133907569",
@@ -74,7 +81,8 @@
     "url": "https://github.com/eirik-rune/runemap/issues/39",
     "status": "requested",
     "discoveredAt": 1786633672358,
-    "retries": 0
+    "retries": 0,
+    "executedAt": 1786635044258
   },
   {
     "id": "gh_5133855898",
@@ -83,7 +91,8 @@
     "url": "https://github.com/relayhop/sn-monetization-runtime/issues/331",
     "status": "requested",
     "discoveredAt": 1786633672360,
-    "retries": 0
+    "retries": 0,
+    "executedAt": 1786635044259
   },
   {
     "id": "gh_5133383162",
@@ -92,7 +101,8 @@
     "url": "https://github.com/relayhop/sn-monetization-runtime/issues/330",
     "status": "requested",
     "discoveredAt": 1786633672361,
-    "retries": 0
+    "retries": 0,
+    "executedAt": 1786635044262
   },
   {
     "id": "gh_5132735687",
@@ -1190,6 +1200,177 @@
     "url": "https://remotive.com/remote-jobs/software-development/senior-independent-ai-engineer-architect-1919266",
     "status": "requested",
     "discoveredAt": 1786633672451,
+    "retries": 0
+  },
+  {
+    "id": "gh_5143003935",
+    "source": "GitHub Help-Wanted Issues",
+    "title": "csdn",
+    "url": "https://github.com/adlered/CSDNGreener/issues/330",
+    "status": "requested",
+    "discoveredAt": 1786634888317,
+    "retries": 0
+  },
+  {
+    "id": "gh_5142956555",
+    "source": "GitHub Help-Wanted Issues",
+    "title": "🐛 bug: advice is about outdated version",
+    "url": "https://github.com/kubestellar/hive/issues/3704",
+    "status": "requested",
+    "discoveredAt": 1786634888318,
+    "retries": 0
+  },
+  {
+    "id": "gh_5142946247",
+    "source": "GitHub Help-Wanted Issues",
+    "title": "feat: Add shimmer loading animation",
+    "url": "https://github.com/SAPTARSHI-coder/EaseMotion-css/issues/81815",
+    "status": "requested",
+    "discoveredAt": 1786634888319,
+    "retries": 0
+  },
+  {
+    "id": "gh_5142921368",
+    "source": "GitHub Help-Wanted Issues",
+    "title": "[Good First Issue] 🍡 Add new Video Game Quote 119 - Beginner-Friendly Open-source Contribution",
+    "url": "https://github.com/lingdojo/kana-dojo/issues/28129",
+    "status": "requested",
+    "discoveredAt": 1786634888320,
+    "retries": 0
+  },
+  {
+    "id": "gh_5142917350",
+    "source": "GitHub Help-Wanted Issues",
+    "title": "[Feature Request]: Glassmorphic Weather Details component",
+    "url": "https://github.com/SAPTARSHI-coder/EaseMotion-css/issues/81810",
+    "status": "requested",
+    "discoveredAt": 1786634888321,
+    "retries": 0
+  },
+  {
+    "id": "gh_5142909820",
+    "source": "GitHub Help-Wanted Issues",
+    "title": "[Feature Request]: Shimmer Skeleton Loader Screen component",
+    "url": "https://github.com/SAPTARSHI-coder/EaseMotion-css/issues/81808",
+    "status": "requested",
+    "discoveredAt": 1786634888322,
+    "retries": 0
+  },
+  {
+    "id": "gh_5142902294",
+    "source": "GitHub Help-Wanted Issues",
+    "title": "[Feature Request]: Glowing Rotating Border Button component",
+    "url": "https://github.com/SAPTARSHI-coder/EaseMotion-css/issues/81805",
+    "status": "requested",
+    "discoveredAt": 1786634888322,
+    "retries": 0
+  },
+  {
+    "id": "gh_5142895767",
+    "source": "GitHub Help-Wanted Issues",
+    "title": "build: add a Makefile with common dev tasks",
+    "url": "https://github.com/vibecoder11200/firstpr/issues/3",
+    "status": "requested",
+    "discoveredAt": 1786634888323,
+    "retries": 0
+  },
+  {
+    "id": "gh_5142894855",
+    "source": "GitHub Help-Wanted Issues",
+    "title": "[Feature Request]: Interactive Vertical Accordion component",
+    "url": "https://github.com/SAPTARSHI-coder/EaseMotion-css/issues/81803",
+    "status": "requested",
+    "discoveredAt": 1786634888324,
+    "retries": 0
+  },
+  {
+    "id": "gh_5142894627",
+    "source": "GitHub Help-Wanted Issues",
+    "title": "docs: add a 'Project status' section to README_Vi.md",
+    "url": "https://github.com/vibecoder11200/firstpr/issues/2",
+    "status": "requested",
+    "discoveredAt": 1786634888324,
+    "retries": 0
+  },
+  {
+    "id": "gh_5142893711",
+    "source": "GitHub Help-Wanted Issues",
+    "title": "docs: add a README badge for the MIT license",
+    "url": "https://github.com/vibecoder11200/firstpr/issues/1",
+    "status": "requested",
+    "discoveredAt": 1786634888325,
+    "retries": 0
+  },
+  {
+    "id": "gh_5142893211",
+    "source": "GitHub Help-Wanted Issues",
+    "title": "[External qualification] Candidate 598753d — independent GitHub participants wanted",
+    "url": "https://github.com/taipei49314/stateweaver/issues/33",
+    "status": "requested",
+    "discoveredAt": 1786634888326,
+    "retries": 0
+  },
+  {
+    "id": "gh_5142887028",
+    "source": "GitHub Help-Wanted Issues",
+    "title": "[Feature Request]: Neon Cyberpunk Status Badge component",
+    "url": "https://github.com/SAPTARSHI-coder/EaseMotion-css/issues/81801",
+    "status": "requested",
+    "discoveredAt": 1786634888327,
+    "retries": 0
+  },
+  {
+    "id": "gh_5142982944",
+    "source": "GitHub Good-First-Issue",
+    "title": "Show friendly error UI when API fails to connect 🔌",
+    "url": "https://github.com/anoopcodehack/DevBoard/issues/244",
+    "status": "requested",
+    "discoveredAt": 1786634888329,
+    "retries": 0
+  },
+  {
+    "id": "gh_5142976881",
+    "source": "GitHub Good-First-Issue",
+    "title": "Show % of tasks completed in navbar 📊",
+    "url": "https://github.com/anoopcodehack/DevBoard/issues/243",
+    "status": "requested",
+    "discoveredAt": 1786634888329,
+    "retries": 0
+  },
+  {
+    "id": "gh_5142957058",
+    "source": "GitHub Good-First-Issue",
+    "title": "refactor(user): remover senha_hash da entidade User (Microsoft Authorizer)",
+    "url": "https://github.com/Maua-Dev/portfolio_api/issues/13",
+    "status": "requested",
+    "discoveredAt": 1786634888330,
+    "retries": 0
+  },
+  {
+    "id": "gh_5142930105",
+    "source": "GitHub Good-First-Issue",
+    "title": "Add a short demo clip to the README",
+    "url": "https://github.com/iksnerd/adb_mcp/issues/3",
+    "status": "requested",
+    "discoveredAt": 1786634888330,
+    "retries": 0
+  },
+  {
+    "id": "gh_5142928737",
+    "source": "GitHub Good-First-Issue",
+    "title": "list_gradle_projects/list_gradle_variants: schema description references fields they ignore",
+    "url": "https://github.com/iksnerd/adb_mcp/issues/2",
+    "status": "requested",
+    "discoveredAt": 1786634888331,
+    "retries": 0
+  },
+  {
+    "id": "gh_5142898548",
+    "source": "GitHub Good-First-Issue",
+    "title": "refactor(user): remover senha_hash da entidade User (Microsoft Authorizer)",
+    "url": "https://github.com/Maua-Dev/portfolio_teia_criativa_api/issues/9",
+    "status": "requested",
+    "discoveredAt": 1786634888332,
     "retries": 0
   }
 ]
