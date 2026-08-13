@@ -216,14 +216,14 @@ function createOpenAICompatibleProvider(
       const isGroq = config.provider === "groq" || baseUrl.includes("groq.com");
 
       const GEMINI_MODEL_CASCADE = [
-        "gemini-2.0-flash",
-        "gemini-2.0-flash-lite",
-        "gemini-1.5-flash",
+        "gemini-2.5-flash",
+        "gemini-3.5-flash-lite",
+        "gemini-2.5-flash-lite",
       ];
       const GROQ_MODEL_CASCADE = [
         "llama-3.3-70b-versatile",
-        "deepseek-r1-distill-llama-70b",
-        "llama-3.3-70b-specdec",
+        "qwen/qwen3.6-27b",
+        "openai/gpt-oss-20b",
         "llama-3.1-8b-instant",
       ];
 
@@ -434,7 +434,7 @@ export function createLLMProvider(config: LLMConfig): LLMProvider {
 
   // 1. Primary: Gemini Provider (if key exists)
   if (geminiKey) {
-    const geminiModel = config.model && config.model.includes("gemini") ? config.model : "gemini-2.0-flash";
+    const geminiModel = config.model && config.model.includes("gemini") ? config.model : "gemini-2.5-flash";
     const geminiConfig: LLMConfig = {
       ...config,
       provider: "gemini",
