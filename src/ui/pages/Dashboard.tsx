@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { api, type StatusData, type ActivityEvent, type StatsData, type KnowledgeEntry, type FeedbackEntry, type WalletInfo, type AgentCashBalance, type SurvivalState } from "../lib/api.js";
+import { api, type StatusData, type ActivityEvent, type StatsData, type KnowledgeEntry, type FeedbackEntry, type WalletInfo, type AgentCashBalance, type SurvivalState, type RevenueData, type TaskData } from "../lib/api.js";
 import { ethToUsd } from "../lib/ethPrice.js";
 import { PlatformStatsWidget } from "../components/PlatformStatsWidget";
 
@@ -24,6 +24,13 @@ function formatRelative(ts: number): string {
   const hrs = Math.floor(mins / 60);
   if (hrs < 24) return `${hrs}h ago`;
   return `${Math.floor(hrs / 24)}d ago`;
+}
+
+function extractUrls(text?: string): string[] {
+  if (!text) return [];
+  const urlRegex = /(https?:\/\/[^\s<>"]+)/g;
+  const matches = text.match(urlRegex) || [];
+  return Array.from(new Set(matches.map((u) => u.replace(/[.,;)]$/, ""))));
 }
 
 const EVENT_COLORS: Record<string, string> = {
@@ -78,6 +85,8 @@ type IntelTab = "knowledge" | "feedback";
 export function Dashboard() {
   const [status, setStatus] = useState<StatusData | null>(null);
   const [events, setEvents] = useState<ActivityEvent[]>([]);
+  const [tasks, setTasks] = useState<TaskData[]>([]);
+  const [revenue, setRevenue] = useState<RevenueData | null>(null);
   const [stats, setStats] = useState<StatsData | null>(null);
   const [wallet, setWallet] = useState<WalletInfo | null>(null);
   const [knowledge, setKnowledge] = useState<KnowledgeEntry[]>([]);
@@ -96,7 +105,7 @@ export function Dashboard() {
 
     async function poll() {
       try {
-        const [s, t, st, w, k, f, cfg, surv] = await Promise.all([
+        const [s, t, st, w, k, f, cfg, surv, rev] = await Promise.all([
           api.getStatus(),
           api.getTasks(),
           api.getStats(),
@@ -105,15 +114,18 @@ export function Dashboard() {
           api.getFeedback().catch(() => ({ entries: [] })),
           api.getConfig().catch(() => null),
           api.getSurvival().catch(() => null),
+          api.getRevenue().catch(() => null),
         ]);
         if (!active) return;
         setStatus(s);
         setEvents([...t.events].reverse());
+        setTasks(t.tasks || []);
         setStats(st);
         setWallet(w);
         setKnowledge(k.entries);
         setFeedback(f.entries);
         setSurvival(surv);
+        if (rev) setRevenue(rev);
         setError(null);
 
         const cashEnabled = cfg?.agentCashEnabled ?? false;
@@ -195,8 +207,10 @@ export function Dashboard() {
       : `${balanceEth} ETH`
     : "--";
 
+  const destWallet = revenue?.destinationWallet || "0xfdCE8864Ab96584102354Eb2d270187E0E900492";
   const recentKnowledge = knowledge.slice(-10).reverse();
   const recentFeedback = feedback.slice(-10).reverse();
+  const submittedOrCompletedTasks = tasks.filter((t) => t.status === "submitted" || t.status === "completed" || t.result);
 
   return (
     <div className="space-y-6">
@@ -227,6 +241,47 @@ export function Dashboard() {
           >
             {status.running ? "Stop Agent" : "Start Agent"}
           </button>
+        </div>
+      </div>
+
+      {/* Live Rabby Wallet & Revenue Disbursement Card */}
+      <div className="p-5 rounded-2xl border border-emerald-500/30 bg-gradient-to-r from-zinc-950 via-zinc-900 to-emerald-950/30 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 shadow-xl">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-xl shrink-0">
+            🐰
+          </div>
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xs font-bold text-zinc-300 uppercase tracking-wider font-mono">Rabby Wallet Treasury</span>
+              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                BASE L2 LIVE
+              </span>
+            </div>
+            <div className="flex items-center gap-3 flex-wrap">
+              <code className="text-sm font-mono font-bold text-zinc-100 bg-zinc-900 px-2.5 py-1 rounded border border-zinc-800">
+                {destWallet}
+              </code>
+              <a
+                href={`https://basescan.org/address/${destWallet}`}
+                target="_blank"
+                rel="noreferrer"
+                className="px-3 py-1 rounded text-xs font-mono font-bold text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 transition-colors inline-flex items-center gap-1"
+              >
+                <span>🔗 View Rabby Wallet on BaseScan ↗</span>
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-6 border-t lg:border-t-0 lg:border-l border-zinc-800 pt-3 lg:pt-0 lg:pl-6 w-full lg:w-auto justify-between lg:justify-end">
+          <div>
+            <p className="text-[10px] text-zinc-400 font-semibold uppercase tracking-wider font-mono">Confirmed Wallet Earnings</p>
+            <p className="text-2xl font-bold font-mono text-emerald-400">${(revenue?.confirmedRevenue || 0).toFixed(2)} USD</p>
+          </div>
+          <div>
+            <p className="text-[10px] text-zinc-400 font-semibold uppercase tracking-wider font-mono">Pending Escrow</p>
+            <p className="text-2xl font-bold font-mono text-amber-400">${(revenue?.pendingRevenue || 0).toFixed(2)} USD</p>
+          </div>
         </div>
       </div>
 
@@ -302,21 +357,81 @@ export function Dashboard() {
         <StatCard label="Active Tasks" value={String(status.activeTasks)} highlight={status.activeTasks > 0} />
         <StatCard label="Completed" value={stats ? String(stats.totalTasks) : "0"} />
         <StatCard label="Avg Score" value={stats && stats.avgScore > 0 ? stats.avgScore.toFixed(1) + "/5" : "--"} />
-        <StatCard label="Balance" value={balanceDisplay} />
+        <StatCard label="Live Rabby Balance" value={balanceDisplay} />
       </div>
 
-      {/* Stats Row 2 — conditional */}
-      {(agentCashEnabled || (stats && (stats.completionRate > 0 || stats.knowledgeEntries > 0 || stats.studySessions > 0))) && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {agentCashEnabled && (
-            <StatCard
-              label="USDC Balance"
-              value={agentCashBalance ? `$${parseFloat(agentCashBalance.balance).toFixed(2)}` : "--"}
-            />
-          )}
-          <StatCard label="Success Rate" value={stats && stats.totalTasks > 0 ? `${stats.completionRate}%` : "--"} />
-          <StatCard label="Knowledge" value={stats ? String(stats.knowledgeEntries) : "0"} />
-          <StatCard label="Study Sessions" value={stats ? String(stats.studySessions) : "0"} />
+      {/* Submitted Tasks & Solution Links Widget */}
+      {submittedOrCompletedTasks.length > 0 && (
+        <div className="card p-5 border border-zinc-800 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-400" />
+              <h2 className="text-base font-bold text-zinc-100 font-mono">Submitted Bounties & Proof Links</h2>
+            </div>
+            <span className="text-xs text-zinc-500 font-mono">({submittedOrCompletedTasks.length} active submissions)</span>
+          </div>
+
+          <div className="divide-y divide-zinc-800/60 overflow-x-auto">
+            {submittedOrCompletedTasks.slice(0, 5).map((t) => {
+              const urls = [...extractUrls(t.task), ...extractUrls(t.result)];
+              const isVerified = t.payoutStatus === "verified_transferred" || t.status === "completed";
+
+              return (
+                <div key={t.id} className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                  <div className="space-y-1 max-w-xl">
+                    <div className="flex items-center gap-2">
+                      <code className="text-zinc-400 font-mono text-[11px] bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-800">
+                        {t.id.slice(0, 8)}
+                      </code>
+                      {isVerified ? (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                          🟢 TRANSFERRED TO RABBY WALLET
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                          🟡 PENDING ESCROW RELEASE
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-zinc-200 font-medium line-clamp-1">{t.task}</p>
+                  </div>
+
+                  {/* Solution Links */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    {urls.length > 0 && (
+                      <a
+                        href={urls[0]}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="px-2.5 py-1 rounded text-[11px] font-mono font-bold text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 transition-colors inline-flex items-center gap-1"
+                      >
+                        <span>🔗 Submission Link ↗</span>
+                      </a>
+                    )}
+                    {t.txHash ? (
+                      <a
+                        href={`https://basescan.org/tx/${t.txHash}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="px-2.5 py-1 rounded text-[11px] font-mono font-bold text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 transition-colors inline-flex items-center gap-1"
+                      >
+                        <span>⛓️ BaseScan Tx ↗</span>
+                      </a>
+                    ) : (
+                      <a
+                        href={`https://basescan.org/address/${destWallet}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="px-2.5 py-1 rounded text-[11px] font-mono text-zinc-400 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 transition-colors"
+                      >
+                        <span>🦊 Rabby BaseScan ↗</span>
+                      </a>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 

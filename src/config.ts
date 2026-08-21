@@ -96,11 +96,11 @@ loadEnvFile();
 
 export function getApiKeyFromEnv(provider: LLMConfig["provider"]): string {
   switch (provider) {
-    case "gemini": return process.env.GEMINI_API_KEY || "";
-    case "openrouter": return process.env.OPENROUTER_API_KEY || "";
+    case "gemini": return process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY || "";
+    case "openrouter": return process.env.OPENROUTER_API_KEYS || process.env.OPENROUTER_API_KEY || "";
     case "openai": return process.env.OPENAI_API_KEY || "";
     case "anthropic": return process.env.ANTHROPIC_API_KEY || "";
-    case "groq": return process.env.GROQ_API_KEY || "";
+    case "groq": return process.env.GROQ_API_KEYS || process.env.GROQ_API_KEY || "";
     case "ollama":
     case "local":
     case "lmstudio": return "ollama";
@@ -126,18 +126,20 @@ export function loadConfig(): CashClawConfig | null {
     }
   }
 
-  const openrouterKey = process.env.OPENROUTER_API_KEY;
+  const geminiKeys = process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY;
+  const groqKeys = process.env.GROQ_API_KEYS || process.env.GROQ_API_KEY;
+  const openrouterKeys = process.env.OPENROUTER_API_KEYS || process.env.OPENROUTER_API_KEY;
 
-  // Environment variable takes highest priority
+  // Environment variable takes highest priority if explicitly specified
   let provider = (process.env.LLM_PROVIDER as LLMConfig["provider"]) || undefined;
 
-  // Respect LLM_PROVIDER from env (defaults to gemini if GEMINI_API_KEY is present)
+  // Auto-detect primary provider from available keys
   if (!provider) {
-    if (process.env.GEMINI_API_KEY) {
+    if (geminiKeys) {
       provider = "gemini";
-    } else if (process.env.GROQ_API_KEY) {
+    } else if (groqKeys) {
       provider = "groq";
-    } else if (openrouterKey) {
+    } else if (openrouterKeys) {
       provider = "openrouter";
     } else {
       provider = "gemini";
@@ -145,12 +147,23 @@ export function loadConfig(): CashClawConfig | null {
   }
 
   const envModel = process.env.LLM_MODEL || undefined;
-  let model = envModel || (parsed?.llm?.model && !parsed.llm.model.startsWith("gemini-") ? parsed.llm.model : "nvidia/nemotron-3-ultra-550b-a55b:free");
+  const defaultModelMap: Record<LLMConfig["provider"], string> = {
+    gemini: "gemini-2.5-flash",
+    groq: "openai/gpt-oss-120b",
+    openrouter: "nvidia/nemotron-3-ultra-550b-a55b:free",
+    anthropic: "claude-3-5-sonnet-20241022",
+    openai: "gpt-4o",
+    ollama: "qwen2.5-coder",
+    local: "qwen2.5-coder",
+    lmstudio: "qwen2.5-coder",
+  };
+
+  let model = envModel || parsed?.llm?.model || defaultModelMap[provider] || "gemini-2.5-flash";
   if (model.includes("deepseek-r1:free")) {
     model = "nvidia/nemotron-3-ultra-550b-a55b:free";
   }
   
-  let apiKey = openrouterKey || getApiKeyFromEnv(provider) || parsed?.llm?.apiKey || "";
+  let apiKey = getApiKeyFromEnv(provider) || parsed?.llm?.apiKey || "";
 
   const config: CashClawConfig = {
     ...DEFAULT_CONFIG,
@@ -162,15 +175,6 @@ export function loadConfig(): CashClawConfig | null {
       apiKey,
     },
   };
-
-  // Permanently overwrite stale agentclaw.json on disk if it contained gemini
-  if (parsed?.llm?.provider === "gemini" && provider === "openrouter") {
-    try {
-      saveConfig(config);
-    } catch {
-      // ignore
-    }
-  }
 
   return config;
 }
@@ -228,7 +232,7 @@ export function initConfig(opts: {
     ollama: "qwen2.5-coder",
     local: "qwen2.5-coder",
     lmstudio: "qwen2.5-coder",
-    groq: "llama-3.3-70b-versatile",
+    groq: "openai/gpt-oss-120b",
   };
 
   const config: CashClawConfig = {

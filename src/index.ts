@@ -1,7 +1,19 @@
 import { startAgent } from "./agent.js";
+import { vaultManager } from "./security/vault.js";
+import { clusterManager } from "./cluster/manager.js";
 
 async function main() {
-  console.log("Starting AgentClaw...");
+  console.log("⚡ Starting AgentClaw Enterprise Cluster...");
+
+  // Initialize AES-256-GCM Vault Manager
+  vaultManager.initializeVault();
+
+  // Start Node Multi-Process Cluster Engine
+  const clusterStatus = clusterManager.startCluster();
+  if (!clusterStatus.isPrimary) {
+    // Worker processes run background tasks
+    return;
+  }
 
   const server = await startAgent();
 

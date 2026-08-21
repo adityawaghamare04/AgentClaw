@@ -8,18 +8,18 @@ import type {
   ToolResultBlock,
 } from "./types.js";
 
-import { autonomousAdapter } from "./adaptation.js";
+import { autonomousAdapter, keyManager } from "./adaptation.js";
 
 export type { LLMProvider, LLMMessage, LLMResponse } from "./types.js";
 
 // Specialized Free Model Cascade Pool for OpenRouter
 const OPENROUTER_MODEL_CASCADE = [
   "nvidia/nemotron-3-ultra-550b-a55b:free",      // Tier 1: Agentic Orchestration & Research
-  "qwen/qwen-2.5-coder-32b-instruct:free",        // Tier 2: Deep Coding & Patch Synthesis
-  "meta-llama/llama-3.3-70b-instruct:free",      // Tier 3: High-capacity Instruction Following
-  "google/gemini-2.0-flash-exp:free",           // Tier 4: High-speed Fallback
-  "deepseek/deepseek-r1-distill-llama-70b:free", // Tier 5: Reasoning Fallback
-  "mistralai/mistral-7b-instruct:free",          // Tier 6: Lightweight Fallback
+  "google/gemma-4-31b-it:free",                   // Tier 2: Strong general-purpose
+  "google/gemma-4-26b-a4b-it:free",               // Tier 3: Efficient mid-range
+  "nvidia/nemotron-3-super-120b-a12b:free",       // Tier 4: High-capacity fallback
+  "nvidia/nemotron-3-nano-30b-a3b:free",          // Tier 5: Lightweight fallback
+  "nvidia/nemotron-nano-12b-v2-vl:free",          // Tier 6: Minimum viable fallback
 ];
 
 function createAnthropicProvider(config: LLMConfig): LLMProvider {
@@ -200,11 +200,16 @@ function createOpenAICompatibleProvider(
   return {
     async chat(messages, tools) {
       const isOpenRouter = baseUrl.includes("openrouter");
-      let activeKey = isOpenRouter
-        ? autonomousAdapter.getActiveApiKey(config.apiKey)
-        : config.apiKey;
-
       const isGemini = config.provider === "gemini" || baseUrl.includes("generativelanguage.googleapis.com");
+      const isGroq = config.provider === "groq" || baseUrl.includes("groq.com");
+
+      const providerName: "gemini" | "groq" | "openrouter" = isGemini
+        ? "gemini"
+        : isGroq
+        ? "groq"
+        : "openrouter";
+
+      let activeKey = keyManager.getActiveKey(providerName) || config.apiKey;
 
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
@@ -216,18 +221,15 @@ function createOpenAICompatibleProvider(
         headers["X-Title"] = "AgentClaw Engine";
       }
 
-      const isGroq = config.provider === "groq" || baseUrl.includes("groq.com");
-
       const GEMINI_MODEL_CASCADE = [
         "gemini-2.5-flash",
         "gemini-3.5-flash-lite",
-        "gemini-2.5-flash-lite",
+        "gemini-3.6-flash",
+        "gemini-3.7-flash",
       ];
       const GROQ_MODEL_CASCADE = [
-        "llama-3.3-70b-versatile",
-        "qwen/qwen3.6-27b",
+        "openai/gpt-oss-120b",
         "openai/gpt-oss-20b",
-        "llama-3.1-8b-instant",
       ];
 
       // Build model candidate queue using Autonomous Model Adapter
@@ -262,6 +264,7 @@ function createOpenAICompatibleProvider(
 
           // Build request URL
           const requestUrl = `${baseUrl}/chat/completions`;
+          activeKey = keyManager.getActiveKey(providerName) || activeKey;
           headers.Authorization = `Bearer ${activeKey}`;
 
           let res: Response;
@@ -280,15 +283,15 @@ function createOpenAICompatibleProvider(
             
             // Autonomously handle 401 Unauthorized / Invalid API Key
             if (res.status === 401) {
-              const nextKey = autonomousAdapter.rotateKeyOnQuotaExhausted(activeKey);
+              const nextKey = keyManager.reportInvalidKey(providerName, activeKey);
               if (nextKey && nextKey !== activeKey) {
                 activeKey = nextKey;
                 headers.Authorization = `Bearer ${activeKey}`;
-                console.log(`⚡ Retrying model '${currentModel}' with newly rotated OpenRouter API key after 401 auth error.`);
+                console.log(`⚡ Retrying model '${currentModel}' with rotated ${providerName} key after 401 error.`);
                 i--; // Retry current model with rotated API key
                 continue;
               }
-              throw new Error(`LLM API 401 Unauthorized: Invalid, expired, or exhausted API key (...${activeKey.slice(-4)}). Please update OPENROUTER_API_KEY in .env.`);
+              throw new Error(`LLM API 401 Unauthorized: ${providerName} key (...${activeKey.slice(-4)}) invalid or expired.`);
             }
 
             // Autonomously handle 404 / 410 / 400 model deprecation or non-tool errors
@@ -298,23 +301,38 @@ function createOpenAICompatibleProvider(
               // Payload too large for this model's context window — cascade to next model
               console.warn(`[LLM Router] ${currentModel} rejected payload (413 too large). Cascading...`);
             } else if (res.status === 429) {
-              // Register 60s temporary cool-off for rate-limited model
-              autonomousAdapter.reportRateLimit(currentModel);
+              // Check if quota limit reached
+              const isQuotaExhausted =
+                errText.includes("free-models-per-day") ||
+                errText.includes("Quota exceeded") ||
+                errText.includes("RESOURCE_EXHAUSTED") ||
+                errText.includes("daily limit");
 
-              // Check if OpenRouter daily quota limit reached ("free-models-per-day")
-              if (isOpenRouter && (errText.includes("free-models-per-day") || errText.includes("Rate limit exceeded"))) {
-                const nextKey = autonomousAdapter.rotateKeyOnQuotaExhausted(activeKey);
+              if (isQuotaExhausted) {
+                const nextKey = keyManager.reportQuotaExhausted(providerName, activeKey);
                 if (nextKey && nextKey !== activeKey) {
                   activeKey = nextKey;
                   headers.Authorization = `Bearer ${activeKey}`;
-                  console.log(`⚡ Retrying model '${currentModel}' with newly rotated OpenRouter API key.`);
-                  i--; // Retry current model with rotated API key
+                  console.log(`⚡ Rotated ${providerName} key after daily quota hit. Retrying '${currentModel}'...`);
+                  i--; // Retry with new key
+                  continue;
+                }
+              } else {
+                keyManager.reportRateLimit(providerName, activeKey);
+                autonomousAdapter.reportRateLimit(currentModel);
+                // Try rotating key even on standard RPM 429 if another key exists
+                const altKey = keyManager.getActiveKey(providerName);
+                if (altKey && altKey !== activeKey) {
+                  activeKey = altKey;
+                  headers.Authorization = `Bearer ${activeKey}`;
+                  console.log(`⚡ Switching to parallel ${providerName} key due to rate-limit RPM spike.`);
+                  i--;
                   continue;
                 }
               }
             }
 
-            // Cascade to next available free tier model in candidate queue
+            // Cascade to next available model in candidate queue
             if (i < modelQueue.length - 1) {
               console.warn(
                 `[LLM Router Warning] ${currentModel} returned ${res.status}. Autonomously cascading to: ${modelQueue[i + 1]}`,
@@ -328,7 +346,8 @@ function createOpenAICompatibleProvider(
             throw new Error(`LLM API ${res.status}: ${errText}`);
           }
 
-          // Mark model as verified healthy on successful completion
+          // Mark model and key as verified healthy on successful completion
+          keyManager.reportSuccess(providerName, activeKey);
           if (isOpenRouter) {
             autonomousAdapter.reportModelSuccess(currentModel);
           }
@@ -428,20 +447,16 @@ function createCascadeLLMProvider(
 export function createLLMProvider(config: LLMConfig): LLMProvider {
   const cascadeList: Array<{ name: string; provider: LLMProvider }> = [];
 
-  const geminiKey = process.env.GEMINI_API_KEY || (config.provider === "gemini" ? config.apiKey : undefined);
-  const groqKey = process.env.GROQ_API_KEY || (config.provider === "groq" ? config.apiKey : undefined);
-  const openRouterKey =
-    process.env.OPENROUTER_API_KEY ||
-    process.env.OPENROUTER_API_KEYS ||
-    (config.provider === "openrouter" ? config.apiKey : undefined);
+  // Reload keys from process.env to pick up any runtime additions
+  keyManager.loadKeysFromEnv();
 
-  // 1. Primary: Gemini Provider (if key exists)
-  if (geminiKey) {
+  // 1. Primary: Google Gemini Provider (if any key exists)
+  if (keyManager.hasKeys("gemini")) {
     const geminiModel = config.model && config.model.includes("gemini") ? config.model : "gemini-2.5-flash";
     const geminiConfig: LLMConfig = {
       ...config,
       provider: "gemini",
-      apiKey: geminiKey,
+      apiKey: keyManager.getActiveKey("gemini") || config.apiKey,
       model: geminiModel,
     };
     cascadeList.push({
@@ -453,13 +468,13 @@ export function createLLMProvider(config: LLMConfig): LLMProvider {
     });
   }
 
-  // 2. Secondary: Groq Provider (Ultra-fast 350 t/s fallback)
-  if (groqKey) {
-    const groqModel = "llama-3.3-70b-versatile";
+  // 2. Secondary: Groq Provider (Ultra-fast fallback)
+  if (keyManager.hasKeys("groq")) {
+    const groqModel = "openai/gpt-oss-120b";
     const groqConfig: LLMConfig = {
       ...config,
       provider: "groq",
-      apiKey: groqKey,
+      apiKey: keyManager.getActiveKey("groq") || config.apiKey,
       model: groqModel,
     };
     cascadeList.push({
@@ -468,13 +483,13 @@ export function createLLMProvider(config: LLMConfig): LLMProvider {
     });
   }
 
-  // 3. Tertiary: OpenRouter Provider (if key exists)
-  if (openRouterKey) {
+  // 3. Tertiary: OpenRouter Provider (if any key exists)
+  if (keyManager.hasKeys("openrouter")) {
     const openRouterModel = config.model && !config.model.includes("gemini") ? config.model : "nvidia/nemotron-3-ultra-550b-a55b:free";
     const openRouterConfig: LLMConfig = {
       ...config,
       provider: "openrouter",
-      apiKey: openRouterKey,
+      apiKey: keyManager.getActiveKey("openrouter") || config.apiKey,
       model: openRouterModel,
     };
     cascadeList.push({

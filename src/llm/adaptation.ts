@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
+import { dbSaveKeyHealth, dbGetAllKeyHealth, type KeyHealthRecord } from "../memory/db.js";
 
 const CONFIG_DIR = path.join(os.homedir(), ".agentclaw");
 const REGISTRY_FILE = path.join(CONFIG_DIR, "model_registry.json");
@@ -38,6 +39,360 @@ interface ModelRegistryData {
   updatedAt: string;
 }
 
+// ==================== UNIVERSAL MULTI-KEY MANAGER ====================
+
+type ProviderName = "gemini" | "groq" | "openrouter";
+
+interface KeyState {
+  key: string;
+  exhaustedAt: number | null;   // timestamp when key hit daily limit
+  rateLimitedUntil: number;     // timestamp when 429 cooloff expires
+  consecutiveErrors: number;    // track consecutive failures
+}
+
+/**
+ * Manages API key pools for ALL providers (Gemini, Groq, OpenRouter).
+ * Features:
+ * - Automatic rotation when a key hits 429 rate limit
+ * - Per-key exhaustion tracking (marks key dead for the day)
+ * - Auto-reset at midnight UTC or after 6 hours
+ * - Round-robin key selection for even load distribution
+ */
+class MultiProviderKeyManager {
+  private pools: Record<ProviderName, KeyState[]> = {
+    gemini: [],
+    groq: [],
+    openrouter: [],
+  };
+  private activeIndex: Record<ProviderName, number> = {
+    gemini: 0,
+    groq: 0,
+    openrouter: 0,
+  };
+
+  constructor() {
+    this.loadKeysFromEnv();
+  }
+
+  /**
+   * Loads all API keys from environment variables.
+   * Supports both singular (GEMINI_API_KEY) and plural (GEMINI_API_KEYS) forms.
+   * Keys are comma-separated.
+   */
+  public loadKeysFromEnv(): void {
+    this.pools.gemini = this.parseKeys(
+      process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY || ""
+    );
+    this.pools.groq = this.parseKeys(
+      process.env.GROQ_API_KEYS || process.env.GROQ_API_KEY || ""
+    );
+    this.pools.openrouter = this.parseKeys(
+      process.env.OPENROUTER_API_KEYS || process.env.OPENROUTER_API_KEY || ""
+    );
+
+    // Restore historical health from SQLite
+    try {
+      const stored = dbGetAllKeyHealth();
+      for (const record of stored) {
+        const providerPool = this.pools[record.provider as ProviderName];
+        if (providerPool) {
+          const match = providerPool.find((s) => this.hashKey(s.key) === record.keyHash);
+          if (match) {
+            match.exhaustedAt = record.exhaustedAt;
+            match.rateLimitedUntil = record.rateLimitedUntil;
+            match.consecutiveErrors = record.consecutiveErrors;
+          }
+        }
+      }
+    } catch {}
+
+    const counts = {
+      gemini: this.pools.gemini.length,
+      groq: this.pools.groq.length,
+      openrouter: this.pools.openrouter.length,
+    };
+    console.log(
+      `🔑 [Multi-Key Manager] Loaded keys: Gemini(${counts.gemini}) | Groq(${counts.groq}) | OpenRouter(${counts.openrouter})`
+    );
+  }
+
+  private hashKey(key: string): string {
+    let hash = 0;
+    for (let i = 0; i < key.length; i++) {
+      hash = (hash << 5) - hash + key.charCodeAt(i);
+      hash |= 0;
+    }
+    return `key_${Math.abs(hash).toString(16)}_${key.slice(-4)}`;
+  }
+
+  private persistKey(provider: ProviderName, state: KeyState): void {
+    try {
+      const keyHash = this.hashKey(state.key);
+      const status = state.exhaustedAt !== null ? "exhausted" : (state.rateLimitedUntil > Date.now() ? "rate_limited" : "active");
+      dbSaveKeyHealth({
+        keyHash,
+        provider,
+        status,
+        exhaustedAt: state.exhaustedAt,
+        rateLimitedUntil: state.rateLimitedUntil,
+        consecutiveErrors: state.consecutiveErrors,
+        updatedAt: Date.now(),
+      });
+    } catch {}
+  }
+
+  private async triggerAlertWebhook(event: string, details: Record<string, any>): Promise<void> {
+    const webhookUrl = process.env.ALERT_WEBHOOK_URL;
+    if (!webhookUrl) return;
+
+    try {
+      const payload = {
+        event,
+        timestamp: Date.now(),
+        agent: "AgentClaw",
+        ...details,
+      };
+      await fetch(webhookUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    } catch (err) {
+      console.warn(`⚠️ [Alert Webhook] Failed to deliver alert to ${webhookUrl}: ${err}`);
+    }
+  }
+
+  private parseKeys(raw: string): KeyState[] {
+    const keys = raw
+      .split(",")
+      .map((k) => k.trim())
+      .filter((k) => k.length > 0);
+    // Deduplicate
+    const unique = Array.from(new Set(keys));
+    return unique.map((key) => ({
+      key,
+      exhaustedAt: null,
+      rateLimitedUntil: 0,
+      consecutiveErrors: 0,
+    }));
+  }
+
+  /**
+   * Returns true if the provider has ANY keys configured.
+   */
+  public hasKeys(provider: ProviderName): boolean {
+    return this.pools[provider].length > 0;
+  }
+
+  /**
+   * Returns ALL raw keys for a provider (for backward compat).
+   */
+  public getAllKeys(provider: ProviderName): string[] {
+    return this.pools[provider].map((s) => s.key);
+  }
+
+  /**
+   * Gets the best available API key for a provider.
+   * Skips exhausted and rate-limited keys. Uses round-robin for load distribution.
+   * Returns null if ALL keys are exhausted/rate-limited.
+   */
+  public getActiveKey(provider: ProviderName): string | null {
+    this.resetExpiredKeys(provider);
+    const pool = this.pools[provider];
+    if (pool.length === 0) return null;
+
+    const now = Date.now();
+
+    // Try round-robin starting from current index
+    for (let attempt = 0; attempt < pool.length; attempt++) {
+      const idx = (this.activeIndex[provider] + attempt) % pool.length;
+      const state = pool[idx];
+
+      if (state.exhaustedAt !== null) continue;  // skip daily-exhausted keys
+      if (state.rateLimitedUntil > now) continue; // skip temporarily rate-limited keys
+
+      // Found a usable key — update active index to next for round-robin
+      this.activeIndex[provider] = (idx + 1) % pool.length;
+      return state.key;
+    }
+
+    // All keys are temporarily limited — return least-recently-limited key
+    const sorted = [...pool].sort((a, b) => a.rateLimitedUntil - b.rateLimitedUntil);
+    if (sorted[0] && sorted[0].exhaustedAt === null) {
+      return sorted[0].key;
+    }
+
+    return null; // truly all exhausted
+  }
+
+  /**
+   * Called when a key gets HTTP 429 (rate limited).
+   * Applies a temporary cooldown (default 60s).
+   */
+  public reportRateLimit(provider: ProviderName, key: string, cooloffMs = 60_000): void {
+    const state = this.findKeyState(provider, key);
+    if (state) {
+      state.rateLimitedUntil = Date.now() + cooloffMs;
+      state.consecutiveErrors++;
+      this.persistKey(provider, state);
+      this.triggerAlertWebhook("key_rate_limited", {
+        provider,
+        keyMasked: `...${key.slice(-4)}`,
+        cooloffSeconds: cooloffMs / 1000,
+        availableKeys: this.getAvailableCount(provider),
+        totalKeys: this.pools[provider].length,
+      });
+      console.warn(
+        `⏳ [Key Rotation] ${provider} key ...${key.slice(-4)} rate-limited. Cooloff ${cooloffMs / 1000}s. ` +
+        `(${this.getAvailableCount(provider)}/${this.pools[provider].length} keys available)`
+      );
+    }
+  }
+
+  /**
+   * Called when a key's daily free quota is exhausted.
+   * Marks the key as dead until midnight UTC reset.
+   */
+  public reportQuotaExhausted(provider: ProviderName, key: string): string | null {
+    const state = this.findKeyState(provider, key);
+    if (state) {
+      state.exhaustedAt = Date.now();
+      state.consecutiveErrors++;
+      this.persistKey(provider, state);
+      this.triggerAlertWebhook("key_quota_exhausted", {
+        provider,
+        keyMasked: `...${key.slice(-4)}`,
+        remainingKeys: this.getAvailableCount(provider),
+        totalKeys: this.pools[provider].length,
+      });
+      console.warn(
+        `🔴 [Key Rotation] ${provider} key ...${key.slice(-4)} daily quota exhausted. ` +
+        `(${this.getAvailableCount(provider)}/${this.pools[provider].length} keys remaining)`
+      );
+    }
+
+    // Try to get next available key
+    const nextKey = this.getActiveKey(provider);
+    if (nextKey) {
+      console.log(
+        `🔑 [Key Rotation] Auto-rotated ${provider} to key ...${nextKey.slice(-4)}`
+      );
+    } else {
+      this.triggerAlertWebhook("provider_all_keys_exhausted", {
+        provider,
+        message: `🔴 ALL ${provider} keys exhausted for today.`,
+      });
+      console.warn(
+        `⚠️ [Key Rotation] ALL ${provider} keys exhausted for today. Will reset at midnight UTC.`
+      );
+    }
+    return nextKey;
+  }
+
+  /**
+   * Called on HTTP 401 (invalid key). Permanently marks the key as exhausted.
+   */
+  public reportInvalidKey(provider: ProviderName, key: string): string | null {
+    const state = this.findKeyState(provider, key);
+    if (state) {
+      state.exhaustedAt = Date.now();
+      this.persistKey(provider, state);
+      this.triggerAlertWebhook("key_invalid", {
+        provider,
+        keyMasked: `...${key.slice(-4)}`,
+      });
+      console.warn(
+        `🚫 [Key Rotation] ${provider} key ...${key.slice(-4)} invalid/expired (401). Removed from rotation.`
+      );
+    }
+    return this.getActiveKey(provider);
+  }
+
+  /**
+   * Called on successful API call. Resets the key's error counter.
+   */
+  public reportSuccess(provider: ProviderName, key: string): void {
+    const state = this.findKeyState(provider, key);
+    if (state) {
+      state.consecutiveErrors = 0;
+      state.rateLimitedUntil = 0;
+      this.persistKey(provider, state);
+    }
+  }
+
+  /**
+   * Returns true if ALL keys for a provider are daily-exhausted.
+   */
+  public isProviderExhausted(provider: ProviderName): boolean {
+    this.resetExpiredKeys(provider);
+    const pool = this.pools[provider];
+    if (pool.length === 0) return true;
+    return pool.every((s) => s.exhaustedAt !== null);
+  }
+
+  /**
+   * Returns true if ALL providers (Gemini + Groq + OpenRouter) are completely exhausted.
+   */
+  public isAllProvidersExhausted(): boolean {
+    const providers: ProviderName[] = ["gemini", "groq", "openrouter"];
+    return providers.every(
+      (p) => this.pools[p].length === 0 || this.isProviderExhausted(p)
+    );
+  }
+
+  /**
+   * Get status summary for logging/dashboard.
+   */
+  public getStatus(): Record<ProviderName, { total: number; available: number; exhausted: number }> {
+    this.resetExpiredKeys("gemini");
+    this.resetExpiredKeys("groq");
+    this.resetExpiredKeys("openrouter");
+
+    const result = {} as Record<ProviderName, { total: number; available: number; exhausted: number }>;
+    for (const provider of ["gemini", "groq", "openrouter"] as ProviderName[]) {
+      const pool = this.pools[provider];
+      const exhausted = pool.filter((s) => s.exhaustedAt !== null).length;
+      result[provider] = {
+        total: pool.length,
+        available: pool.length - exhausted,
+        exhausted,
+      };
+    }
+    return result;
+  }
+
+  // --- Internal helpers ---
+
+  private findKeyState(provider: ProviderName, key: string): KeyState | undefined {
+    return this.pools[provider].find((s) => s.key === key);
+  }
+
+  private getAvailableCount(provider: ProviderName): number {
+    const now = Date.now();
+    return this.pools[provider].filter(
+      (s) => s.exhaustedAt === null && s.rateLimitedUntil <= now
+    ).length;
+  }
+
+  /**
+   * Auto-resets exhausted keys after 6 hours or at midnight UTC.
+   */
+  private resetExpiredKeys(provider: ProviderName): void {
+    const now = Date.now();
+    for (const state of this.pools[provider]) {
+      if (state.exhaustedAt === null) continue;
+      const hoursSinceExhaustion = (now - state.exhaustedAt) / (1000 * 60 * 60);
+      if (hoursSinceExhaustion >= 6) {
+        state.exhaustedAt = null;
+        state.consecutiveErrors = 0;
+        state.rateLimitedUntil = 0;
+      }
+    }
+  }
+}
+
+// ==================== OPENROUTER MODEL ADAPTER ====================
+
 class AutonomousModelAdapter {
   private blacklisted = new Set<string>([
     "deepseek/deepseek-r1:free",
@@ -45,29 +400,20 @@ class AutonomousModelAdapter {
     "google/lyria-3-clip-preview",
     "nvidia/nemotron-3.5-content-safety:free",
     "openrouter/free",
+    // Pre-blacklisted deprecated models (August 2026)
+    "gemini-2.5-flash-lite",
+    "llama-3.3-70b-versatile",
+    "llama-3.1-8b-instant",
   ]);
   private discoveredFreeModels: string[] = [...DEFAULT_FREE_MODELS];
   private activePrimaryModel = "nvidia/nemotron-3-ultra-550b-a55b:free";
   private lastFetchTime = 0;
   private rateLimitedUntil = new Map<string, number>();
-  private exhaustedKeys = new Set<string>();
-  private apiKeys: string[] = [];
-  private activeKeyIndex = 0;
 
   constructor() {
     this.loadState();
-    this.initApiKeys();
     // Background fetch free models from OpenRouter API
     this.refreshOpenRouterFreeModels().catch(() => {});
-  }
-
-  private initApiKeys() {
-    const rawKeys = process.env.OPENROUTER_API_KEYS || process.env.OPENROUTER_API_KEY || "";
-    const list = rawKeys
-      .split(",")
-      .map((k) => k.trim())
-      .filter((k) => k.length > 0);
-    this.apiKeys = Array.from(new Set(list));
   }
 
   private loadState() {
@@ -120,46 +466,6 @@ class AutonomousModelAdapter {
     } catch {
       // ignore write errors
     }
-  }
-
-  /**
-   * Returns current active OpenRouter API key with automatic fallback
-   */
-  public getActiveApiKey(fallbackKey?: string): string {
-    this.initApiKeys();
-    if (this.apiKeys.length === 0 && fallbackKey) {
-      return fallbackKey;
-    }
-    const validKeys = this.apiKeys.filter((k) => !this.exhaustedKeys.has(k));
-    if (validKeys.length > 0) {
-      const idx = this.activeKeyIndex % validKeys.length;
-      return validKeys[idx];
-    }
-    return fallbackKey || this.apiKeys[0] || "";
-  }
-
-  /**
-   * Called when OpenRouter responds with daily quota limit ("free-models-per-day").
-   * Autonomously rotates to next unexhausted API Key if available.
-   */
-  public rotateKeyOnQuotaExhausted(currentKey: string): string | null {
-    if (currentKey) {
-      this.exhaustedKeys.add(currentKey);
-    }
-    this.initApiKeys();
-    const validKeys = this.apiKeys.filter((k) => !this.exhaustedKeys.has(k));
-    if (validKeys.length > 0) {
-      this.activeKeyIndex = (this.activeKeyIndex + 1) % validKeys.length;
-      const nextKey = validKeys[0];
-      console.warn(
-        `🔑 [Autonomous API Key Rotation] Exceeded daily free quota (50 requests/day) on key ...${currentKey.slice(-4)}. Autonomously rotating to key ...${nextKey.slice(-4)}.`
-      );
-      return nextKey;
-    }
-    console.warn(
-      `⚠️ [Autonomous API Key Warning] All configured OpenRouter API keys have reached their daily free tier limit (50 requests/day). Add additional keys to OPENROUTER_API_KEYS in .env or set GEMINI_API_KEY.`
-    );
-    return null;
   }
 
   /**
@@ -283,4 +589,7 @@ class AutonomousModelAdapter {
   }
 }
 
+// ==================== EXPORTS (Singletons) ====================
+
+export const keyManager = new MultiProviderKeyManager();
 export const autonomousAdapter = new AutonomousModelAdapter();

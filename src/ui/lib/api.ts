@@ -57,6 +57,10 @@ export interface TaskData {
   quotedPriceWei?: string;
   ratedScore?: number;
   result?: string;
+  txHash?: string;
+  earnedUsd?: number;
+  source?: string;
+  payoutStatus?: "pending_escrow" | "verified_transferred" | "failed";
 }
 
 export interface StatsData {

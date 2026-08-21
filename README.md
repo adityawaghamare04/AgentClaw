@@ -1,11 +1,11 @@
-# 🐾 AgentClaw: Autonomous 24/7 Freelance & Bounty Engine
+# 🐾 AgentClaw: 10/10 Enterprise Autonomous Freelance & Bounty Engine
 
 <p align="center">
   <a href="https://github.com/adityawaghamare04/AgentClaw"><img src="https://img.shields.io/badge/Node.js-v20%2B-green.svg" alt="Node.js" /></a>
   <a href="https://typescriptlang.org"><img src="https://img.shields.io/badge/TypeScript-5.7-blue.svg" alt="TypeScript" /></a>
-  <a href="https://ai.google.dev"><img src="https://img.shields.io/badge/LLM-Gemini%202.5%20Flash%20%2F%20Pro-orange.svg" alt="Gemini" /></a>
-  <a href="https://render.com"><img src="https://img.shields.io/badge/Deployment-Render.com%2024%2F7-purple.svg" alt="Render" /></a>
-  <a href="https://viem.sh"><img src="https://img.shields.io/badge/Treasury-EVM%20%2F%20Viem-gold.svg" alt="Viem EVM" /></a>
+  <a href="https://ai.google.dev"><img src="https://img.shields.io/badge/LLM-Multi--Provider%20Failover-orange.svg" alt="LLM Mesh" /></a>
+  <a href="https://viem.sh"><img src="https://img.shields.io/badge/Base%20L2-Multi--RPC%20Mesh-gold.svg" alt="Base L2" /></a>
+  <a href="https://www.koyeb.com"><img src="https://img.shields.io/badge/Deployment-Koyeb%20%2F%20Render%2024%2F7-purple.svg" alt="Koyeb Render" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-brightgreen.svg" alt="License" /></a>
 </p>
 
@@ -13,24 +13,21 @@
 
 ## 🌟 What is AgentClaw?
 
-**AgentClaw** is an open-source, fully autonomous AI freelance agent designed to run 24 hours a day, 7 days a week in the cloud. It continuously hunts for open bounties, evaluates freelance requests, quotes prices, writes code, submits deliverables, collects payments into your EVM wallet, and gets smarter over time—**100% on autopilot with $0 operating costs.**
+**AgentClaw** is an enterprise-grade, fully autonomous AI freelance agent designed to run **24 hours a day, 7 days a week** in the cloud. It continuously hunts for open bounties, evaluates freelance requests, quotes prices, writes code, executes solutions in isolated sandboxes, collects crypto payouts into your EVM wallet, and alerts you proactively on Webhook events.
 
-Unlike simple scripts, AgentClaw features a **Gamified HP Survival System**: it consumes **-2 HP/hour** while idle and restores **+20 HP for every $10 earned**, driving its autonomous motivation to stay alive and profitable.
+Built with a **10 / 10 Enterprise Architecture**, AgentClaw incorporates ACID SQLite persistence, multi-RPC Web3 failover, AES-256-GCM cryptographic vault security, process crash auto-recovery, and real-time WebSocket telemetry.
 
 ---
 
-## ✨ Key Features
+## ✨ Enterprise Architectural Highlights
 
-* ⚡ **Powered by Google Gemini 2.5 Flash & Pro**: Uses Gemini 2.5 Flash for high-speed ~200ms task discovery and proposal generation, and Gemini 2.5 Pro for deep software engineering architecture.
-* 🌐 **12 Connected Freelance Channels**:
-  * **Category A (Public Bounties)**: Algora, Bountycaster, Gitcoin, IssueHunt, Opire, GitHub Bounties, Reddit.
-  * **Category B (Social Bots)**: Telegram & Discord native chat bots.
-  * **Category C (Inbound Webhooks)**: REST API endpoint (`POST /api/webhooks/task`) for Fiverr, Contra, and Portfolio forms.
-* 💚 **HP Survival Engine**: Gamified health system (-2 HP/hr idle, +20 HP per $10 earned) with live visual status monitoring.
-* 💳 **Direct On-Chain EVM Treasury**: Integrates with `viem` to collect crypto payments (USDC / ETH) directly into your MetaMask / EVM wallet address.
-* 🧠 **MiniSearch RAG Vector Memory**: Performs self-study sessions every 30 minutes, indexing completed projects to improve future proposals and code output.
-* ☁️ **24/7 Zero-Cost Cloud Deployment**: Containerized with Docker and ready for 1-click continuous deployment on **Render.com** without relying on your personal laptop.
-* 📊 **Glassmorphic React Dashboard**: Real-time monitoring UI served locally or over HTTPS on port `3777`.
+* 🛡️ **Execution Sandboxing**: Runs untrusted code in Docker containers or isolated subprocess VMs with automatic secret stripping (`ETH_PRIVATE_KEY` and API keys are scrubbed before code runs).
+* 🔐 **AES-256-GCM Security Vault & Zeroization Enclave**: Secrets are encrypted using PBKDF2-derived 256-bit keys. Private key buffers are decrypted in transient closures and immediately zeroized (`buffer.fill(0)`) after signing.
+* ⚡ **Node Multi-Process Clustering**: Primary/Leader node orchestrates worker pools with SQLite heartbeat monitoring (`cluster_nodes`). Crashed worker processes auto-respawn in `< 100ms`.
+* 🗄️ **ACID SQLite WAL Mode Persistence**: Zero event-loop blocking with non-volatile key health tracking, execution logs, and instant in-memory cache sync.
+* 🌐 **Base L2 Multi-RPC Failover Mesh**: 6-Node fallback transport (`viem.fallback`) with dynamic latency ranking every 30 seconds to guarantee zero-loss payouts.
+* 📡 **Native WebSocket Telemetry (`/ws`)**: Real-time push stream broadcasting queue metrics, active tasks, worker node status, and financial earnings.
+* 🧠 **Multi-LLM Failover Router**: Auto-detects and rotates across Gemini, Groq, and OpenRouter with key health tracking and rate-limit cooloff handling.
 
 ---
 
@@ -38,40 +35,42 @@ Unlike simple scripts, AgentClaw features a **Gamified HP Survival System**: it 
 
 ```text
  ┌─────────────────────────────────────────────────────────────────────────────┐
- │                         AgentClaw Autonomous Engine                         │
+ │                      AgentClaw 10/10 Enterprise Engine                      │
  │                                                                             │
  │ ┌───────────────────┐    ┌────────────────────┐    ┌──────────────────────┐ │
- │ │  Category A Feeds │    │ Category B Social  │    │ Category C Webhooks  │ │
- │ │ Algora, Gitcoin,  │    │ Telegram Bot       │    │ POST /api/webhooks   │ │
- │ │ Bountycaster, etc │    │ Discord Bot        │    │ (Fiverr/Portfolio)   │ │
+ │ │  Bounty Feeds     │    │ Social Listeners   │    │ Inbound Webhooks     │ │
+ │ │ Algora, Gitcoin,  │    │ Telegram & Discord │    │ POST /api/webhooks   │ │
+ │ │ Bountycaster, etc │    │ Chat Bots          │    │ (Fiverr/Portfolio)   │ │
  │ └─────────┬─────────┘    └─────────┬──────────┘    └──────────┬───────────┘ │
  │           │                        │                          │             │
  │           └────────────────────────┼──────────────────────────┘             │
  │                                    ▼                                        │
  │                        ┌───────────────────────┐                            │
- │                        │ Gemini 2.5 LLM Engine │                            │
- │                        │ (Flash & Pro Models)  │                            │
+ │                        │ Multi-LLM Mesh Router │                            │
+ │                        │ Gemini / Groq / Router│                            │
  │                        └───────────┬───────────┘                            │
  │                                    │                                        │
- │             ┌──────────────────────┼──────────────────────┐                 │
- │             ▼                      ▼                      ▼                 │
- │     ┌──────────────┐       ┌──────────────┐       ┌──────────────┐          │
- │     │ EVM Treasury │       │ MiniSearch   │       │ HP Survival  │          │
- │     │ (Viem Wallet)│       │ RAG Memory   │       │ Engine       │          │
- │     └──────────────┘       └──────────────┘       └──────────────┘          │
- │                                                                             │
- │     HTTP Server :3777 ──> Real-Time Glassmorphic React UI Dashboard         │
+ │     ┌──────────────────────────────┼──────────────────────────────┐         │
+ │     ▼                              ▼                              ▼         │
+ │ ┌──────────────────┐    ┌─────────────────────┐    ┌──────────────────────┐ │
+ │ │ AES-256-GCM Vault│    │ Docker / VM Sandbox │    │ ACID SQLite WAL DB   │ │
+ │ │ Zeroization Sign │    │ Secret Stripping    │    │ Key Health & Cluster │ │
+ │ └─────────┬────────┘    └──────────┬──────────┘    └──────────┬───────────┘ │
+ │           │                        │                          │             │
+ │           └────────────────────────┼──────────────────────────┘             │
+ │                                    ▼                                        │
+ │   HTTP Server :3777 + /ws ──> Glassmorphic Dashboard & Real-Time Push Stream│
  └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 🚀 Quick Start (Local Development)
+## 🚀 Quick Start (Local Setup)
 
 ### 1. Clone & Install Dependencies
 ```bash
 git clone https://github.com/adityawaghamare04/AgentClaw.git
-cd agentclaw
+cd AgentClaw
 npm install
 ```
 
@@ -81,106 +80,86 @@ Copy `.env.example` to `.env`:
 cp .env.example .env
 ```
 
-Edit your `.env` file:
+Set up your core credentials in `.env`:
 ```env
-# Required LLM Credentials ($0 Free)
-GEMINI_API_KEY=your_google_ai_studio_key
+# Server Port
+PORT=3777
+AGENTCLAW_PORT=3777
+
+# Primary LLM Provider & Keys
 LLM_PROVIDER=gemini
 LLM_MODEL=gemini-2.5-flash
+GEMINI_API_KEYS=your_gemini_key_1,your_gemini_key_2
+GROQ_API_KEYS=your_groq_key_1
+OPENROUTER_API_KEYS=your_openrouter_key_1
 
-# Required Payout Wallet
-TREASURY_ADDRESS=0xYourEthereumWalletAddress
+# Security Vault Passphrase
+VAULT_PASSPHRASE=Your_Super_Secret_Passphrase_2026!
+ADMIN_PASSWORD=Your_Admin_Password
 
-# Optional Social Bots
-DISCORD_BOT_TOKEN=your_discord_bot_token
-TELEGRAM_BOT_TOKEN=your_telegram_bot_token
-
-# Server Port
-AGENTCLAW_PORT=3777
+# Payout Wallet (Base L2)
+TREASURY_ADDRESS=0xYourBaseWalletAddress
+ETH_PRIVATE_KEY=0xYourEthereumPrivateKey
 ```
 
-### 3. Launch Development Server & Dashboard
+### 3. Launch Engine & Realtime Dashboard
 ```bash
 npm run dev
 ```
-Open **`http://localhost:3777`** in your browser to view your live AgentClaw dashboard!
+Open **`http://localhost:3777`** to view your live glassmorphic dashboard!
 
 ---
 
-## ☁️ 24/7 Cloud Deployment (Render.com)
+## ☁️ 24/7 Cloud Deployment
 
-AgentClaw includes a pre-configured **`Dockerfile`** and **`render.yaml`** blueprint for continuous cloud hosting.
-
-1. Push your repository to **GitHub**:
+### Option A: Koyeb Deployment (Recommended - 100% Free 24/7)
+1. Push code to **GitHub**:
    ```bash
    git add .
-   git commit -m "Deploy AgentClaw 24/7 Engine"
+   git commit -m "Deploy AgentClaw"
    git push origin main
    ```
-2. Log into **[Render.com](https://dashboard.render.com)**.
-3. Click **New +** → **Web Service** → Connect your `agentclaw` repository.
-4. Select **Docker** environment (Free Plan).
-5. Add your environment variables (`GEMINI_API_KEY`, `LLM_MODEL`, `TREASURY_ADDRESS`, `DISCORD_BOT_TOKEN`, `TELEGRAM_BOT_TOKEN`).
-6. Click **Deploy Web Service**!
+2. Log into **[Koyeb.com](https://www.koyeb.com)** and click **Create Service** → **GitHub**.
+3. Select your `AgentClaw` repository (Koyeb auto-detects `koyeb.yaml`).
+4. Add your `.env` variables under **Environment Variables**.
+5. Click **Deploy**!
 
-Your AgentClaw engine will now run 24 hours a day, 7 days a week in the cloud.
+### Option B: Render Deployment
+1. Log into **[Render.com](https://dashboard.render.com)**.
+2. Click **New +** → **Web Service** → Connect your `AgentClaw` repository.
+3. Select **Node** or **Docker** environment.
+4. Set Build Command: `npm run build`, Start Command: `npm start`.
+5. Add your `.env` variables and deploy!
 
 ---
 
-## 🛠️ Environment Configuration Reference
+## 🛠️ Environment Variables Reference
 
 | Variable | Required | Description | Default |
 | :--- | :---: | :--- | :--- |
-| `GEMINI_API_KEY` | **Yes** | Google AI Studio API key | - |
-| `LLM_PROVIDER` | **Yes** | LLM provider (`gemini`, `openrouter`, `openai`, `anthropic`) | `gemini` |
-| `LLM_MODEL` | **Yes** | Model identifier | `gemini-2.5-flash` |
-| `TREASURY_ADDRESS` | **Yes** | Public EVM wallet address to receive crypto bounties | - |
-| `DISCORD_BOT_TOKEN` | Optional | Discord bot token for Category B listener | - |
-| `TELEGRAM_BOT_TOKEN` | Optional | Telegram BotFather API token for Category B listener | - |
-| `AGENTCLAW_PORT` | Optional | Server port for REST API and React Dashboard | `3777` |
+| `PORT` | **Yes** | Server listening port | `3777` |
+| `LLM_PROVIDER` | **Yes** | Primary provider (`gemini`, `groq`, `openrouter`, `openai`) | `gemini` |
+| `LLM_MODEL` | **Yes** | Active LLM model | `gemini-2.5-flash` |
+| `GEMINI_API_KEYS` | **Yes** | Comma-separated Gemini API keys for rotation | - |
+| `GROQ_API_KEYS` | Optional | Groq keys for secondary failover | - |
+| `OPENROUTER_API_KEYS` | Optional | OpenRouter keys for tertiary failover | - |
+| `VAULT_PASSPHRASE` | **Yes** | Master passphrase to encrypt AES-256-GCM vault | - |
+| `TREASURY_ADDRESS` | **Yes** | Public EVM wallet address to receive bounties | - |
+| `ETH_PRIVATE_KEY` | **Yes** | Private key for Base L2 on-chain settlements | - |
+| `ALERT_WEBHOOK_URL` | Optional | Webhook URL for Discord/Telegram alerts | - |
 
 ---
 
-## 🧪 Testing Inbound Webhooks (Category C)
+## 🧪 Testing Inbound Webhooks
 
-You can trigger a test task locally or against your deployed Render cloud server using `curl`:
+Trigger a test task against your local or cloud server:
 
 ```bash
 curl -X POST http://localhost:3777/api/webhooks/task \
   -H "Content-Type: application/json" \
   -d '{
     "task": "Build a responsive React navigation bar component",
-    "budgetUsd": 40,
-    "platform": "Fiverr"
-  }'
-```
-
----
-
-## 🛠️ Environment Configuration Reference
-
-| Variable | Required | Description | Default |
-| :--- | :---: | :--- | :--- |
-| `GEMINI_API_KEY` | **Yes** | Google AI Studio API key | - |
-| `LLM_PROVIDER` | **Yes** | LLM provider (`gemini`, `openrouter`, `openai`, `anthropic`) | `gemini` |
-| `LLM_MODEL` | **Yes** | Model identifier | `gemini-2.5-flash` |
-| `TREASURY_ADDRESS` | **Yes** | Public EVM wallet address to receive crypto bounties | - |
-| `DISCORD_BOT_TOKEN` | Optional | Discord bot bot token for Category B listener | - |
-| `TELEGRAM_BOT_TOKEN` | Optional | Telegram BotFather API token for Category B listener | - |
-| `CASHCLAW_PORT` | Optional | Server port for REST API and React Dashboard | `3777` |
-
----
-
-## 🧪 Testing Inbound Webhooks (Category C)
-
-You can trigger a test task locally or against your deployed Render cloud server using `curl`:
-
-```bash
-curl -X POST http://localhost:3777/api/webhooks/task \
-  -H "Content-Type: application/json" \
-  -d '{
-    "task": "Build a responsive React navigation bar component",
-    "budgetUsd": 40,
+    "budgetUsd": 50,
     "platform": "Fiverr"
   }'
 ```
@@ -189,8 +168,8 @@ curl -X POST http://localhost:3777/api/webhooks/task \
 
 ## 📄 License
 
-Distributed under the MIT License. See `LICENSE` for more information.
+Distributed under the **MIT License**. See `LICENSE` for details.
 
 <p align="center">
-  <b>Built for the autonomous AI economy by Aditya</b>
+  <b>Built for the Autonomous AI Economy by Aditya</b>
 </p>

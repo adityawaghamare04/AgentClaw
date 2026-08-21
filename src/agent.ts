@@ -2,6 +2,7 @@ import http from "node:http";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { WebSocketServer, WebSocket } from "ws";
 import {
   loadConfig,
   savePartialConfig,
@@ -22,6 +23,7 @@ import {
   reviveAgent,
   recordEarning,
 } from "./memory/survival.js";
+import { autoSettlePendingEarnings, testRpcMeshHealth } from "./memory/settlement.js";
 import { agentcashBalance } from "./tools/agentcash.js";
 import * as cli from "./moltlaunch/cli.js";
 import { startCategoryBListeners } from "./listeners/categoryB.js";
@@ -83,6 +85,48 @@ export async function startAgent(): Promise<http.Server> {
   }
 
   const server = createServer(ctx);
+
+  // Initialize WebSocket Server for Realtime Push Telemetry (Pillar 4)
+  const wss = new WebSocketServer({ server, path: "/ws" });
+  const wsClients = new Set<WebSocket>();
+
+  wss.on("connection", (ws) => {
+    wsClients.add(ws);
+    ws.send(
+      JSON.stringify({
+        type: "connected",
+        timestamp: Date.now(),
+        message: "AgentClaw 10/10 WebSocket Telemetry Bus Connected",
+        queueStatus: ctx.heartbeat ? ctx.heartbeat.getQueueStatus() : null,
+      })
+    );
+
+    ws.on("message", (raw) => {
+      try {
+        const msg = JSON.parse(raw.toString());
+        if (msg.type === "ping") {
+          ws.send(JSON.stringify({ type: "pong", timestamp: Date.now() }));
+        }
+      } catch {}
+    });
+
+    ws.on("close", () => {
+      wsClients.delete(ws);
+    });
+  });
+
+  if (ctx.heartbeat) {
+    ctx.heartbeat.onEvent((event) => {
+      const payload = JSON.stringify({ type: "event", timestamp: Date.now(), data: event });
+      for (const ws of wsClients) {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(payload);
+        }
+      }
+    });
+  }
+
+  (ctx as any).wsClients = wsClients;
   return server;
 }
 
@@ -244,21 +288,33 @@ function handleApi(
     case "/api/tasks": {
       const activeTasksMap = ctx.heartbeat.state.activeTasks;
       const dbTasks = dbGetAllTasks(1000);
+      const dbEarnings = dbGetEarnings();
+      const earningsByTaskMap = new Map<string, any>();
+      for (const e of dbEarnings) {
+        earningsByTaskMap.set(e.taskId, e);
+        earningsByTaskMap.set(e.id, e);
+      }
       const mergedMap = new Map<string, any>();
 
       // Populate DB tasks first
       for (const dbt of dbTasks) {
+        const earn = earningsByTaskMap.get(dbt.id);
         mergedMap.set(dbt.id, {
           id: dbt.id,
           task: dbt.title,
           status: dbt.status,
           quotedPriceWei: dbt.earnedUsd ? String(dbt.earnedUsd) : undefined,
           result: dbt.solutionSnippet,
+          earnedUsd: dbt.earnedUsd || earn?.amountUsd,
+          payoutStatus: earn?.payoutStatus,
+          txHash: earn?.txHash,
+          source: earn?.source,
         });
       }
 
       // Overlay live active tasks
       for (const at of activeTasksMap.values()) {
+        const earn = earningsByTaskMap.get(at.id);
         mergedMap.set(at.id, {
           id: at.id,
           task: at.task,
@@ -266,6 +322,10 @@ function handleApi(
           quotedPriceWei: at.quotedPriceWei,
           ratedScore: at.ratedScore,
           result: at.result,
+          earnedUsd: earn?.amountUsd,
+          payoutStatus: earn?.payoutStatus,
+          txHash: earn?.txHash,
+          source: earn?.source,
         });
       }
 
@@ -371,11 +431,49 @@ function handleApi(
       });
       break;
     case "/api/revenue":
+      autoSettlePendingEarnings().catch(() => {}).finally(() => {
+        json(res, {
+          confirmedRevenue: dbGetTotalEarnings(),
+          pendingRevenue: dbGetPendingEarnings(),
+          destinationWallet: process.env.TREASURY_ADDRESS || "0xfdCE8864Ab96584102354Eb2d270187E0E900492",
+          earnings: dbGetEarnings(),
+        });
+      });
+      break;
+
+    case "/api/rpc-mesh":
+      testRpcMeshHealth()
+        .then((meshHealth) => {
+          json(res, {
+            timestamp: Date.now(),
+            meshStatus: meshHealth.some((n) => n.status === "healthy") ? "ONLINE" : "DEGRADED",
+            healthyNodeCount: meshHealth.filter((n) => n.status === "healthy").length,
+            totalNodes: meshHealth.length,
+            nodes: meshHealth,
+          });
+        })
+        .catch((err) => {
+          json(res, { error: err instanceof Error ? err.message : String(err) }, 500);
+        });
+      break;
+
+    case "/api/queue-status":
+      if (ctx.heartbeat) {
+        json(res, {
+          timestamp: Date.now(),
+          running: ctx.heartbeat.state.running,
+          ...ctx.heartbeat.getQueueStatus(),
+        });
+      } else {
+        json(res, { error: "Heartbeat engine not running" }, 503);
+      }
+      break;
+
+    case "/api/websocket-info":
       json(res, {
-        confirmedRevenue: dbGetTotalEarnings(),
-        pendingRevenue: dbGetPendingEarnings(),
-        destinationWallet: process.env.TREASURY_ADDRESS || "0xfdCE8864Ab96584102354Eb2d270187E0E900492",
-        earnings: dbGetEarnings(),
+        enabled: true,
+        endpoint: `ws://localhost:${PORT}/ws`,
+        activeClients: (ctx as any).wsClients ? (ctx as any).wsClients.size : 0,
       });
       break;
 

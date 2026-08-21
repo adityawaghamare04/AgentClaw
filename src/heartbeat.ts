@@ -1,13 +1,16 @@
 import WebSocket from "ws";
+import PQueue from "p-queue";
 import type { CashClawConfig } from "./config.js";
 import type { LLMProvider } from "./llm/types.js";
 import type { Task } from "./moltlaunch/types.js";
 import * as cli from "./moltlaunch/cli.js";
 import { runAgentLoop, type LoopResult } from "./loop/index.js";
+import { autonomousAdapter, keyManager } from "./llm/adaptation.js";
 import { runStudySession } from "./loop/study.js";
 import { storeFeedback } from "./memory/feedback.js";
 import { appendLog } from "./memory/log.js";
 import { applyHourlyDecay, recordEarning, loadSurvivalState } from "./memory/survival.js";
+import { autoSettlePendingEarnings } from "./memory/settlement.js";
 import {
   dbRecordEarning,
   dbUpdateTaskStatus,
@@ -30,6 +33,9 @@ export interface HeartbeatState {
   wsConnected: boolean;
   lastStudyTime: number;
   totalStudySessions: number;
+  workerConcurrency: number;
+  activeWorkers: number;
+  queuedTasks: number;
 }
 
 export interface ActivityEvent {
@@ -51,12 +57,19 @@ const WS_MAX_RECONNECT_MS = 300_000;
 const WS_POLL_INTERVAL_MS = 120_000;
 const TASK_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000;
 // Rate-limit cooldown after 429
-const RATE_LIMIT_COOLDOWN_MS = 60_000; // 1 min (shorter — we use free models now)
+const RATE_LIMIT_COOLDOWN_MS = 60_000; // 1 min
 
 export function createHeartbeat(
   config: CashClawConfig,
   llm: LLMProvider,
 ) {
+  // ⚡ Pillar 3: Concurrent Worker Queue Initialization
+  const maxConcurrency = Math.max(1, config.maxConcurrentTasks || 5);
+  const taskQueue = new PQueue({
+    concurrency: maxConcurrency,
+    autoStart: true,
+  });
+
   const state: HeartbeatState = {
     running: false,
     activeTasks: new Map(),
@@ -67,6 +80,13 @@ export function createHeartbeat(
     wsConnected: false,
     lastStudyTime: 0,
     totalStudySessions: 0,
+    workerConcurrency: maxConcurrency,
+    get activeWorkers() {
+      return taskQueue.pending;
+    },
+    get queuedTasks() {
+      return taskQueue.size;
+    },
   };
 
   let timer: ReturnType<typeof setTimeout> | null = null;
@@ -186,10 +206,132 @@ export function createHeartbeat(
     state.wsConnected = false;
   }
 
-  // --- AGGRESSIVE TASK EXECUTION ENGINE ---
+  // --- CONCURRENT WORKER EXECUTION ENGINE (Pillar 3) ---
+
+  async function executeTaskWorker(task: Task): Promise<void> {
+    const startTime = Date.now();
+    emit({
+      type: "exec",
+      taskId: task.id,
+      message: `⚡ WORKER EXECUTING [Active Workers: ${taskQueue.pending}/${taskQueue.concurrency}]: ${task.task.slice(0, 70)}`,
+    });
+    appendLog(`⚡ Executing task ${task.id} (Workers: ${taskQueue.pending}/${taskQueue.concurrency}): ${task.task.slice(0, 100)}`);
+
+    dbUpdateTaskStatus(task.id, "executing");
+
+    try {
+      const result: LoopResult = await runAgentLoop(llm, task, config);
+      const toolNames = result.toolCalls.map((tc) => tc.name).join(", ");
+      const hasSubmit = result.toolCalls.some((tc) => tc.name === "submit_work");
+
+      emit({
+        type: "loop_complete",
+        taskId: task.id,
+        message: `✅ Done in ${result.turns} turns: [${toolNames}]${hasSubmit ? " → SUBMITTED" : ""}`,
+      });
+      appendLog(`Task ${task.id} done: ${result.turns} turns, tools=[${toolNames}]`);
+
+      for (const tc of result.toolCalls) {
+        emit({
+          type: "tool_call",
+          taskId: task.id,
+          message: `${tc.name}(${JSON.stringify(tc.input).slice(0, 80)}) → ${tc.success ? "✓" : "✗"}`,
+        });
+      }
+
+      dbLogExecution({
+        taskId: task.id,
+        startedAt: startTime,
+        completedAt: Date.now(),
+        turns: result.turns,
+        toolsUsed: result.toolCalls.map((tc) => tc.name),
+        success: hasSubmit,
+      });
+
+      if (hasSubmit) {
+        const earnedUsd = Number(task.budgetWei) || 25;
+        dbRecordEarning({
+          taskId: task.id,
+          source: task.clientAddress || "bounty",
+          amountUsd: earnedUsd,
+          title: task.task.slice(0, 100),
+          payoutStatus: "pending_escrow",
+        });
+        dbUpdateTaskStatus(task.id, "submitted", { solutionSnippet: result.reasoning.slice(0, 500) });
+
+        emit({
+          type: "feedback",
+          taskId: task.id,
+          message: `🟡 SUBMITTED! Bounty +$${earnedUsd} pending escrow release...`,
+        });
+
+        autoSettlePendingEarnings()
+          .then((res) => {
+            if (res.settled.length > 0) {
+              emit({
+                type: "feedback",
+                taskId: task.id,
+                message: `🟢 CONFIRMED! $${res.totalSettledUsd} transferred to wallet ${res.settled[0]?.destinationWallet || ""}`,
+              });
+            }
+          })
+          .catch((err) => {
+            appendLog(`[Settlement Warning] Instant settlement attempt: ${err.message}`);
+          });
+      } else {
+        dbUpdateTaskStatus(task.id, "completed");
+      }
+
+      consecutive429s = 0;
+      taskRetryCounts.delete(task.id);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      emit({ type: "error", taskId: task.id, message: `❌ Error: ${msg.slice(0, 200)}` });
+      appendLog(`Error for ${task.id}: ${msg}`);
+
+      const is429 = msg.includes("429") || msg.includes("RESOURCE_EXHAUSTED") || msg.includes("quota") || msg.includes("rate");
+      if (is429) {
+        consecutive429s++;
+        const retries = (taskRetryCounts.get(task.id) || 0) + 1;
+        taskRetryCounts.set(task.id, retries);
+
+        const backoffMs = Math.min(RATE_LIMIT_COOLDOWN_MS * Math.pow(2, retries - 1), 10 * 60 * 1000);
+        taskRetryAfter.set(task.id, Date.now() + backoffMs);
+        rateLimitedUntil = Date.now() + RATE_LIMIT_COOLDOWN_MS;
+        processedVersions.delete(task.id);
+
+        dbUpdateTaskStatus(task.id, "queued", { errorMsg: `429 - retry #${retries}`, retries });
+
+        emit({
+          type: "error",
+          taskId: task.id,
+          message: `⏳ Rate limited — retry in ${Math.round(backoffMs / 60000)} min (attempt ${retries})`,
+        });
+      } else {
+        const retryCount = (taskRetryCounts.get(task.id) || 0) + 1;
+        if (retryCount <= 3) {
+          taskRetryCounts.set(task.id, retryCount);
+          taskRetryAfter.set(task.id, Date.now() + 30_000);
+          processedVersions.delete(task.id);
+          dbUpdateTaskStatus(task.id, "queued", { errorMsg: msg.slice(0, 200), retries: retryCount });
+        } else {
+          dbUpdateTaskStatus(task.id, "failed", { errorMsg: msg.slice(0, 200) });
+        }
+      }
+
+      dbLogExecution({
+        taskId: task.id,
+        startedAt: startTime,
+        completedAt: Date.now(),
+        turns: 0,
+        toolsUsed: [],
+        success: false,
+        errorMsg: msg.slice(0, 300),
+      });
+    }
+  }
 
   function handleTaskEvent(task: Task) {
-    // Save/update in database so status survives restarts and redeployments
     try {
       dbRecordDiscovery({
         id: task.id,
@@ -220,7 +362,7 @@ export function createHeartbeat(
       return;
     }
 
-    // Skip if this task is in retry backoff
+    // Skip if task in retry backoff
     const retryAfter = taskRetryAfter.get(task.id);
     if (retryAfter && Date.now() < retryAfter) {
       state.activeTasks.set(task.id, task);
@@ -237,129 +379,35 @@ export function createHeartbeat(
 
     if (processing.has(task.id)) return;
 
-    // DON'T skip quoted/submitted — only skip if truly terminal
     if (task.status === "quoted" || task.status === "submitted") {
       state.activeTasks.set(task.id, task);
       processedVersions.set(task.id, version);
       return;
     }
 
-    if (processing.size >= config.maxConcurrentTasks) return;
+    // Guard: Skip execution if all LLM providers are quota-exhausted across all keys
+    if (keyManager.isAllProvidersExhausted() && consecutive429s >= 3) {
+      emit({
+        type: "error",
+        taskId: task.id,
+        message: `⏸️ All API keys across all providers exhausted for today. Task deferred until quota resets.`,
+      });
+      state.activeTasks.set(task.id, task);
+      return;
+    }
 
-    // ⚡ EXECUTE
     state.activeTasks.set(task.id, task);
     processedVersions.set(task.id, version);
     taskRetryAfter.delete(task.id);
     processing.add(task.id);
 
-    const startTime = Date.now();
-    emit({ type: "exec", taskId: task.id, message: `⚡ EXECUTING: ${task.task.slice(0, 80)}` });
-    appendLog(`⚡ Executing task ${task.id}: ${task.task.slice(0, 100)}`);
-
-    // Update DB
-    dbUpdateTaskStatus(task.id, "executing");
-
-    runAgentLoop(llm, task, config)
-      .then((result: LoopResult) => {
-        const toolNames = result.toolCalls.map((tc) => tc.name).join(", ");
-        const hasSubmit = result.toolCalls.some((tc) => tc.name === "submit_work");
-
-        emit({
-          type: "loop_complete",
-          taskId: task.id,
-          message: `✅ Done in ${result.turns} turns: [${toolNames}]${hasSubmit ? " → SUBMITTED" : ""}`,
-        });
-        appendLog(`Task ${task.id} done: ${result.turns} turns, tools=[${toolNames}]`);
-
-        for (const tc of result.toolCalls) {
-          emit({
-            type: "tool_call",
-            taskId: task.id,
-            message: `${tc.name}(${JSON.stringify(tc.input).slice(0, 80)}) → ${tc.success ? "✓" : "✗"}`,
-          });
-        }
-
-        // Record in DB
-        dbLogExecution({
-          taskId: task.id,
-          startedAt: startTime,
-          completedAt: Date.now(),
-          turns: result.turns,
-          toolsUsed: result.toolCalls.map(tc => tc.name),
-          success: hasSubmit,
-        });
-
-        if (hasSubmit) {
-          // Log earning in Pending Escrow state
-          const earnedUsd = Number(task.budgetWei) || 25;
-          dbRecordEarning({
-            taskId: task.id,
-            source: task.clientAddress || "bounty",
-            amountUsd: earnedUsd,
-            title: task.task.slice(0, 100),
-            payoutStatus: "pending_escrow",
-          });
-          dbUpdateTaskStatus(task.id, "submitted", { solutionSnippet: result.reasoning.slice(0, 500) });
-
-          emit({
-            type: "feedback",
-            taskId: task.id,
-            message: `🟡 SUBMITTED! Bounty +$${earnedUsd} pending escrow release to MetaWallet`,
-          });
-        } else {
-          dbUpdateTaskStatus(task.id, "completed");
-        }
-
-        // Reset 429 counter on success
-        consecutive429s = 0;
-        taskRetryCounts.delete(task.id);
+    // ⚡ ENQUEUE TASK INTO CONCURRENT WORKER POOL
+    taskQueue
+      .add(async () => {
+        await executeTaskWorker(task);
       })
-      .catch((err: unknown) => {
-        const msg = err instanceof Error ? err.message : String(err);
-        emit({ type: "error", taskId: task.id, message: `❌ Error: ${msg.slice(0, 200)}` });
-        appendLog(`Error for ${task.id}: ${msg}`);
-
-        const is429 = msg.includes("429") || msg.includes("RESOURCE_EXHAUSTED") || msg.includes("quota") || msg.includes("rate");
-        if (is429) {
-          consecutive429s++;
-          const retries = (taskRetryCounts.get(task.id) || 0) + 1;
-          taskRetryCounts.set(task.id, retries);
-
-          // Backoff: 1min, 2min, 4min, max 10min
-          const backoffMs = Math.min(RATE_LIMIT_COOLDOWN_MS * Math.pow(2, retries - 1), 10 * 60 * 1000);
-          taskRetryAfter.set(task.id, Date.now() + backoffMs);
-          rateLimitedUntil = Date.now() + RATE_LIMIT_COOLDOWN_MS;
-          processedVersions.delete(task.id);
-
-          dbUpdateTaskStatus(task.id, "queued", { errorMsg: `429 - retry #${retries}`, retries });
-
-          emit({
-            type: "error",
-            taskId: task.id,
-            message: `⏳ Rate limited — retry in ${Math.round(backoffMs / 60000)} min (attempt ${retries})`,
-          });
-        } else {
-          // Non-429: retry up to 3 times
-          const retryCount = (taskRetryCounts.get(task.id) || 0) + 1;
-          if (retryCount <= 3) {
-            taskRetryCounts.set(task.id, retryCount);
-            taskRetryAfter.set(task.id, Date.now() + 30_000);
-            processedVersions.delete(task.id);
-            dbUpdateTaskStatus(task.id, "queued", { errorMsg: msg.slice(0, 200), retries: retryCount });
-          } else {
-            dbUpdateTaskStatus(task.id, "failed", { errorMsg: msg.slice(0, 200) });
-          }
-        }
-
-        dbLogExecution({
-          taskId: task.id,
-          startedAt: startTime,
-          completedAt: Date.now(),
-          turns: 0,
-          toolsUsed: [],
-          success: false,
-          errorMsg: msg.slice(0, 300),
-        });
+      .catch((err) => {
+        appendLog(`[Worker Queue Exception] Task ${task.id}: ${err instanceof Error ? err.message : String(err)}`);
       })
       .finally(() => {
         processing.delete(task.id);
@@ -371,6 +419,7 @@ export function createHeartbeat(
   async function tick() {
     try {
       applyHourlyDecay();
+      await autoSettlePendingEarnings().catch(() => {});
       const tasks = await cli.getInbox(config.agentId);
       state.lastPoll = Date.now();
       state.totalPolls++;
@@ -421,7 +470,7 @@ export function createHeartbeat(
       }
     }
 
-    // Study ONLY if completely idle and not rate-limited (deprioritized)
+    // Study ONLY if completely idle and not rate-limited
     void maybeStudy();
 
     if (state.wsConnected) {
@@ -429,7 +478,6 @@ export function createHeartbeat(
       return;
     }
 
-    // Fast polling when tasks exist — we want to execute ASAP
     const hasWork = [...state.activeTasks.values()].some(
       (t) => t.status === "requested" || t.status === "revision" || t.status === "accepted",
     );
@@ -446,19 +494,15 @@ export function createHeartbeat(
   async function maybeStudy() {
     if (!config.learningEnabled) return;
     if (studying) return;
-    if (processing.size > 0) return;
+    if (processing.size > 0 || taskQueue.pending > 0) return;
 
-    // Don't study if rate-limited
     if (Date.now() < rateLimitedUntil) return;
 
-    // Don't study if there are ANY pending tasks
     const hasTasks = state.activeTasks.size > 0;
     if (hasTasks) return;
 
-    // Don't study if tasks waiting for retry
     if (taskRetryAfter.size > 0) return;
 
-    // Study much less frequently — every 2 hours instead of 30 min
     const STUDY_INTERVAL = Math.max(config.studyIntervalMs, 7_200_000);
     if (Date.now() - state.lastStudyTime < STUDY_INTERVAL) return;
 
@@ -479,6 +523,15 @@ export function createHeartbeat(
     }
   }
 
+  function getQueueStatus() {
+    return {
+      concurrency: taskQueue.concurrency,
+      activeWorkers: taskQueue.pending,
+      queuedTasks: taskQueue.size,
+      processingTaskIds: Array.from(processing),
+    };
+  }
+
   function start() {
     if (state.running) return;
     state.running = true;
@@ -486,8 +539,8 @@ export function createHeartbeat(
     if (state.lastStudyTime === 0) {
       state.lastStudyTime = Date.now();
     }
-    appendLog("🔥 AgentClaw execution engine started — AGGRESSIVE MODE");
-    console.log("🔥 [Heartbeat] Execution engine started — AGGRESSIVE MODE");
+    appendLog("🔥 AgentClaw execution engine started — CONCURRENT WORKER POOL ACTIVE (Pillar 3)");
+    console.log("🔥 [Heartbeat] Execution engine started — CONCURRENT WORKER POOL ACTIVE (Pillar 3)");
     connectWs();
     void tick();
   }
@@ -496,10 +549,11 @@ export function createHeartbeat(
     state.running = false;
     if (timer) { clearTimeout(timer); timer = null; }
     disconnectWs();
+    taskQueue.clear();
     appendLog("Heartbeat stopped");
   }
 
-  return { state, start, stop, onEvent };
+  return { state, start, stop, onEvent, getQueueStatus };
 }
 
 export type Heartbeat = ReturnType<typeof createHeartbeat>;

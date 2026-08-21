@@ -1,7 +1,7 @@
 import { defineConfig } from "tsup";
 
 export default defineConfig({
-  entry: ["src/index.ts"],
+  entry: ["src/index.ts", "src/memory/db.ts"],
   format: ["esm"],
   target: "node20",
   outDir: "dist",
@@ -10,4 +10,5 @@ export default defineConfig({
   sourcemap: true,
   dts: false,
   banner: { js: "#!/usr/bin/env node" },
+  external: ["better-sqlite3"],
 });
