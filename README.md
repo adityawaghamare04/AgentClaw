@@ -171,5 +171,5 @@ curl -X POST http://localhost:3777/api/webhooks/task \
 Distributed under the **MIT License**. See `LICENSE` for details.
 
 <p align="center">
-  <b>Built for the Autonomous AI Economy by Aditya</b>
+  <b>Built for the Autonomous AI Economy by Aditya Waghamare</b>
 </p>
