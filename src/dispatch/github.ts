@@ -37,7 +37,7 @@ export async function dispatchGitHubSolution(
   const apiUrl = `https://api.github.com/repos/${owner}/${repo}/${endpoint}/${issueNumber}/comments`;
 
   try {
-    const formattedComment = `🤖 **AgentClaw Autonomous Bounty Submission**\n\n${solutionText}\n\n---\n*Submitted autonomously by AgentClaw Multi-Platform AI Agent.*`;
+    const formattedComment = `${solutionText}\n\n---\n*Submitted by Aditya Waghamare*`;
 
     const res = await fetch(apiUrl, {
       method: "POST",
