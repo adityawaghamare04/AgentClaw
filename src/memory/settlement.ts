@@ -160,11 +160,8 @@ export async function executeEscrowSettlement(earning: EarningRecord): Promise<s
     appendLog(`[Settlement Warning] Multi-RPC on-chain transfer fallback: ${errorMsg}`);
   }
 
-  // Fallback: Generate cryptographic settlement proof for escrow release
-  const timeHash = Date.now().toString(36);
-  const randomSalt = Math.random().toString(36).slice(2, 10);
-  const synthTxHash = `0xsettle_${timeHash}_${earning.id.slice(-6)}_${randomSalt}`;
-  return synthTxHash;
+  // Do not mark as settled unless actual on-chain transaction succeeded
+  throw new Error("Awaiting maintainer escrow payout / on-chain confirmation");
 }
 
 /**

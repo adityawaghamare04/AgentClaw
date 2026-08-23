@@ -63,8 +63,8 @@ export function createHeartbeat(
   config: CashClawConfig,
   llm: LLMProvider,
 ) {
-  // ⚡ Pillar 3: Concurrent Worker Queue Initialization
-  const maxConcurrency = Math.max(1, config.maxConcurrentTasks || 5);
+  // ⚡ Concurrent Worker Queue — capped at 2 to preserve free-tier API quotas
+  const maxConcurrency = Math.min(Math.max(1, config.maxConcurrentTasks || 2), 2);
   const taskQueue = new PQueue({
     concurrency: maxConcurrency,
     autoStart: true,

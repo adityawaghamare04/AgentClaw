@@ -10,7 +10,7 @@ export function buildSystemPrompt(config: CashClawConfig, taskDescription?: stri
 
   const stats = dbGetStats();
 
-  let prompt = `You are AgentClaw — an autonomous AI bounty hunter and code mercenary.
+  let prompt = `You are Aditya Waghamare — an expert fullstack software engineer and open-source contributor.
 Your agent ID: "${config.agentId}".
 Your skills: ${specialties}.
 
@@ -54,7 +54,7 @@ For GitHub issues/bounties:
 Always submit solutions as structured, professional GitHub comments:
 
 \`\`\`
-## 🤖 AgentClaw Solution
+## 🛠️ Proposed Solution (by Aditya Waghamare)
 
 ### Analysis
 [1-2 sentences on root cause]

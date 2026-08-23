@@ -35,10 +35,10 @@ export async function dispatchGitHubSolution(
   }
 
   const [, owner, repo, itemType, issueNumber] = match;
-  const authHeaders = {
-    "User-Agent": "AgentClaw-Engine",
+  const authHeaders: Record<string, string> = {
+    "User-Agent": "Aditya-Waghamare",
     "Accept": "application/vnd.github.v3+json",
-    "Authorization": `token ${token}`,
+    "Authorization": token.startsWith("github_pat_") || token.startsWith("ghp_") ? `Bearer ${token}` : `token ${token}`,
     "Content-Type": "application/json",
   };
 
@@ -66,9 +66,18 @@ export async function dispatchGitHubSolution(
       if (refRes.ok) {
         const refData = (await refRes.json()) as any;
         const baseSha = refData.object.sha;
-        const branchName = `agentclaw/fix-issue-${issueNumber}-${Date.now().toString().slice(-4)}`;
+        const branchName = `fix/issue-${issueNumber}-${Date.now().toString().slice(-4)}`;
 
-        // 3. Create new branch for fix
+        const treasuryAddress = process.env.TREASURY_ADDRESS || "0xb61dBcdBc3407F71EaCb64D4CBFAcf9FFfe2415C";
+        const signature = `\n\n---\n*Submitted by Aditya Waghamare*\n💰 **Payout Address (Base L2 / EVM):** \`${treasuryAddress}\``;
+        const filePath = `SOLUTION_ISSUE_${issueNumber}.md`;
+        const fileContentBase64 = Buffer.from(
+          `# Solution for Issue #${issueNumber}\n\n${solutionText}${signature}`
+        ).toString("base64");
+
+        let prCreated = false;
+
+        // Strategy A: Direct branch creation (works on owned/authorized repos)
         const newRefRes = await fetch(
           `https://api.github.com/repos/${owner}/${repo}/git/refs`,
           {
@@ -82,44 +91,116 @@ export async function dispatchGitHubSolution(
         );
 
         if (newRefRes.ok) {
-          // 4. Create/update a solution patch file in the new branch
-          const filePath = `AGENTCLAW_SOLUTION_ISSUE_${issueNumber}.md`;
-          const fileContentBase64 = Buffer.from(
-            `# Solution for Issue #${issueNumber}\n\n${solutionText}\n\n---\n*Submitted by Aditya Waghamare*`
-          ).toString("base64");
+          // Direct commit & PR
+          await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`, {
+            method: "PUT",
+            headers: authHeaders,
+            body: JSON.stringify({
+              message: `fix: solution for issue #${issueNumber}`,
+              content: fileContentBase64,
+              branch: branchName,
+            }),
+          });
 
-          await fetch(
-            `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`,
-            {
-              method: "PUT",
-              headers: authHeaders,
-              body: JSON.stringify({
-                message: `fix(bounty): add autonomous solution for issue #${issueNumber}`,
-                content: fileContentBase64,
-                branch: branchName,
-              }),
-            }
-          );
-
-          // 5. Open Pull Request
-          const prRes = await fetch(
-            `https://api.github.com/repos/${owner}/${repo}/pulls`,
-            {
-              method: "POST",
-              headers: authHeaders,
-              body: JSON.stringify({
-                title: `fix: solution for issue #${issueNumber}`,
-                head: branchName,
-                base: defaultBranch,
-                body: `### Autonomous Bounty Solution\n\nCloses #${issueNumber}\n\n${solutionText}\n\n---\n*Submitted by Aditya Waghamare*`,
-              }),
-            }
-          );
+          const prRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls`, {
+            method: "POST",
+            headers: authHeaders,
+            body: JSON.stringify({
+              title: `fix: solution for issue #${issueNumber}`,
+              head: branchName,
+              base: defaultBranch,
+              body: `### Fix & Proposed Solution\n\nCloses #${issueNumber}\n\n${solutionText}${signature}`,
+            }),
+          });
 
           if (prRes.ok) {
             const prData = (await prRes.json()) as any;
             createdPrUrl = prData.html_url;
-            appendLog(`🔀 [Hybrid Dispatch] Created Pull Request #${prData.number}: ${createdPrUrl}`);
+            appendLog(`🔀 [Hybrid Dispatch] Created Direct Pull Request #${prData.number}: ${createdPrUrl}`);
+            prCreated = true;
+          }
+        }
+
+        // Strategy B: Universal Forking Strategy for 3rd-party public repos
+        if (!prCreated) {
+          console.log(`[Hybrid Dispatch] Direct branch creation failed (3rd party repo). Initiating fork workflow...`);
+          // 1. Get authenticated user login
+          const userRes = await fetch("https://api.github.com/user", { headers: authHeaders });
+          if (userRes.ok) {
+            const userData = (await userRes.json()) as any;
+            const authenticatedUser = userData.login;
+
+            // 2. Fork repository to authenticated user account
+            const forkRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/forks`, {
+              method: "POST",
+              headers: authHeaders,
+            });
+
+            if (forkRes.ok || forkRes.status === 202) {
+              // Wait 2.5s for fork creation to finish
+              await new Promise((r) => setTimeout(r, 2500));
+
+              // 3. Get fork default branch ref
+              const forkRefRes = await fetch(
+                `https://api.github.com/repos/${authenticatedUser}/${repo}/git/ref/heads/${defaultBranch}`,
+                { headers: authHeaders }
+              );
+
+              if (forkRefRes.ok) {
+                const forkRefData = (await forkRefRes.json()) as any;
+                const forkBaseSha = forkRefData.object.sha;
+
+                // 4. Create branch on fork
+                const forkBranchRes = await fetch(
+                  `https://api.github.com/repos/${authenticatedUser}/${repo}/git/refs`,
+                  {
+                    method: "POST",
+                    headers: authHeaders,
+                    body: JSON.stringify({
+                      ref: `refs/heads/${branchName}`,
+                      sha: forkBaseSha,
+                    }),
+                  }
+                );
+
+                if (forkBranchRes.ok) {
+                  // 5. Commit patch to fork branch
+                  await fetch(
+                    `https://api.github.com/repos/${authenticatedUser}/${repo}/contents/${filePath}`,
+                    {
+                      method: "PUT",
+                      headers: authHeaders,
+                      body: JSON.stringify({
+                        message: `fix: solution for issue #${issueNumber}`,
+                        content: fileContentBase64,
+                        branch: branchName,
+                      }),
+                    }
+                  );
+
+                  // 6. Open PR from fork to original repo
+                  const forkPrRes = await fetch(
+                    `https://api.github.com/repos/${owner}/${repo}/pulls`,
+                    {
+                      method: "POST",
+                      headers: authHeaders,
+                      body: JSON.stringify({
+                        title: `fix: solution for issue #${issueNumber}`,
+                        head: `${authenticatedUser}:${branchName}`,
+                        base: defaultBranch,
+                        body: `### Fix & Proposed Solution\n\nCloses #${issueNumber}\n\n${solutionText}${signature}`,
+                      }),
+                    }
+                  );
+
+                  if (forkPrRes.ok) {
+                    const prData = (await forkPrRes.json()) as any;
+                    createdPrUrl = prData.html_url;
+                    appendLog(`🔀 [Hybrid Dispatch] Created Fork-based Pull Request #${prData.number}: ${createdPrUrl}`);
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -135,13 +216,15 @@ export async function dispatchGitHubSolution(
   const commentApiUrl = `https://api.github.com/repos/${owner}/${repo}/${endpoint}/${issueNumber}/comments`;
 
   try {
+    const treasuryAddress = process.env.TREASURY_ADDRESS || "0xb61dBcdBc3407F71EaCb64D4CBFAcf9FFfe2415C";
+    const signature = `\n\n---\n*Submitted by Aditya Waghamare*\n💰 **Payout Address (Base L2 / EVM):** \`${treasuryAddress}\``;
     let commentBody = solutionText;
 
     if (createdPrUrl) {
       commentBody = `### 🔀 Pull Request Created\nI have opened a Pull Request with the verified solution patch: [${createdPrUrl}](${createdPrUrl})\n\n### Proposed Solution & Patch\n${solutionText}`;
     }
 
-    const formattedComment = `${commentBody}\n\n---\n*Submitted by Aditya Waghamare*`;
+    const formattedComment = `${commentBody}${signature}`;
 
     const res = await fetch(commentApiUrl, {
       method: "POST",

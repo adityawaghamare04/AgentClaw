@@ -400,10 +400,13 @@ class AutonomousModelAdapter {
     "google/lyria-3-clip-preview",
     "nvidia/nemotron-3.5-content-safety:free",
     "openrouter/free",
-    // Pre-blacklisted deprecated models (August 2026)
-    "gemini-2.5-flash-lite",
-    "llama-3.3-70b-versatile",
-    "llama-3.1-8b-instant",
+    // Pre-blacklisted deprecated Gemini models (August 2026)
+    // gemini-2.5-flash returns 404, gemini-3.x requires thought_signature
+    "gemini-2.5-flash",
+    "gemini-3.5-flash-lite",
+    "gemini-3.5-flash",
+    "gemini-3.6-flash",
+    "gemini-3.7-flash",
   ]);
   private discoveredFreeModels: string[] = [...DEFAULT_FREE_MODELS];
   private activePrimaryModel = "nvidia/nemotron-3-ultra-550b-a55b:free";

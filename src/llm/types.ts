@@ -9,6 +9,8 @@ export interface ToolUseBlock {
   id: string;
   name: string;
   input: Record<string, unknown>;
+  /** Gemini thought_signature and other provider-specific metadata */
+  extra_content?: Record<string, unknown>;
 }
 
 export type ContentBlock = TextBlock | ToolUseBlock;

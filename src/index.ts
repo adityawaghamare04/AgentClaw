@@ -25,7 +25,7 @@ async function main() {
     : process.platform === "win32"
       ? "start"
       : "xdg-open";
-  execFileCb(opener, [url], () => {});
+  execFileCb(opener, [url], { shell: process.platform === "win32" }, () => {});
 
   // Graceful shutdown
   const shutdown = () => {

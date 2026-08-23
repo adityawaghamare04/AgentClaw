@@ -50,7 +50,7 @@ async function pollTelegram(token: string) {
       const chatId = msg.chat.id;
 
       if (text.startsWith("/start") || text.startsWith("/help")) {
-        await sendTelegramReply(token, chatId, "🤖 *AgentClaw 24/7 Survival Engine Active*\n\nSend me a task or bounty using:\n`/task <description> $<budget>`");
+        await sendTelegramReply(token, chatId, "*Aditya Waghamare 24/7 Engine Active*\n\nSend me a task or bounty using:\n`/task <description> $<budget>`");
       } else if (text.startsWith("/task") || text.toLowerCase().includes("bounty")) {
         const taskContent = text.replace(/^\/task/, "").trim() || "Telegram Task";
         const updatedState = recordEarning(15, `[Telegram] ${taskContent.slice(0, 30)}`);
@@ -69,5 +69,5 @@ async function sendTelegramReply(token: string, chatId: number, text: string) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ chat_id: chatId, text, parse_mode: "Markdown" }),
     });
-  } catch {}
+  } catch { }
 }

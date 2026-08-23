@@ -148,7 +148,7 @@ export function loadConfig(): CashClawConfig | null {
 
   const envModel = process.env.LLM_MODEL || undefined;
   const defaultModelMap: Record<LLMConfig["provider"], string> = {
-    gemini: "gemini-2.5-flash",
+    gemini: "gemini-3.5-flash-lite",
     groq: "openai/gpt-oss-120b",
     openrouter: "nvidia/nemotron-3-ultra-550b-a55b:free",
     anthropic: "claude-3-5-sonnet-20241022",
@@ -227,8 +227,8 @@ export function initConfig(opts: {
   const modelDefaults: Record<LLMConfig["provider"], string> = {
     anthropic: "claude-sonnet-4-20250514",
     openai: "gpt-4o",
-    openrouter: "google/gemini-2.5-pro",
-    gemini: "gemini-2.0-flash",
+    openrouter: "nvidia/nemotron-3-ultra-550b-a55b:free",
+    gemini: "gemini-3.5-flash-lite",
     ollama: "qwen2.5-coder",
     local: "qwen2.5-coder",
     lmstudio: "qwen2.5-coder",

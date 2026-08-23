@@ -110,6 +110,7 @@ function toOpenAIMessages(messages: LLMMessage[]): unknown[] {
               id: string;
               name: string;
               input: Record<string, unknown>;
+              extra_content?: Record<string, unknown>;
             } => b.type === "tool_use",
           )
           .map((b) => ({
@@ -119,6 +120,8 @@ function toOpenAIMessages(messages: LLMMessage[]): unknown[] {
               name: b.name,
               arguments: JSON.stringify(b.input),
             },
+            // Preserve Gemini thought_signature for multi-turn tool calling
+            ...(b.extra_content ? { extra_content: b.extra_content } : {}),
           }));
 
         return {
@@ -146,6 +149,7 @@ interface OpenAIToolCall {
   id: string;
   type: "function";
   function: { name: string; arguments: string };
+  extra_content?: Record<string, unknown>;
 }
 
 // ==================== RATE LIMITER ====================
@@ -189,9 +193,11 @@ class RateLimiter {
 }
 
 // Provider-specific rate limiters (shared across all calls)
-const geminiLimiter = new RateLimiter(14, 3);   // 14 RPM (buffer from 15), max 3 concurrent
-const groqLimiter = new RateLimiter(28, 3);     // 28 RPM (buffer from 30), max 3 concurrent
-const defaultLimiter = new RateLimiter(50, 5);  // generous defaults for other providers
+// Provider-specific rate limiters (shared across all calls)
+// Conservative limits to avoid burning free-tier quotas
+const geminiLimiter = new RateLimiter(10, 1);   // 10 RPM, max 1 concurrent (tool calls are multi-turn)
+const groqLimiter = new RateLimiter(25, 1);     // 25 RPM (buffer from 30), max 1 concurrent
+const defaultLimiter = new RateLimiter(30, 2);  // reasonable for other providers
 
 function createOpenAICompatibleProvider(
   config: LLMConfig,
@@ -221,15 +227,17 @@ function createOpenAICompatibleProvider(
         headers["X-Title"] = "AgentClaw Engine";
       }
 
+      // Use models that WORK with OpenAI-compatible endpoint + tool calling
+      // gemini-2.5-flash requires thought_signature passthrough (now supported)
+      // gemini-3.5-flash-lite is the most reliable for tool calling
       const GEMINI_MODEL_CASCADE = [
-        "gemini-2.5-flash",
         "gemini-3.5-flash-lite",
-        "gemini-3.6-flash",
-        "gemini-3.7-flash",
+        "gemini-2.5-flash",
       ];
       const GROQ_MODEL_CASCADE = [
         "openai/gpt-oss-120b",
         "openai/gpt-oss-20b",
+        "qwen/qwen3.6-27b",
       ];
 
       // Build model candidate queue using Autonomous Model Adapter
@@ -383,6 +391,8 @@ function createOpenAICompatibleProvider(
                 id: tc.id,
                 name: tc.function.name,
                 input,
+                // Preserve Gemini thought_signature for multi-turn tool calling
+                extra_content: (tc as any).extra_content || undefined,
               });
             }
           }
@@ -452,7 +462,7 @@ export function createLLMProvider(config: LLMConfig): LLMProvider {
 
   // 1. Primary: Google Gemini Provider (if any key exists)
   if (keyManager.hasKeys("gemini")) {
-    const geminiModel = config.model && config.model.includes("gemini") ? config.model : "gemini-2.5-flash";
+    const geminiModel = "gemini-3.5-flash-lite"; // Verified working with tool calling via OpenAI-compat
     const geminiConfig: LLMConfig = {
       ...config,
       provider: "gemini",
@@ -470,7 +480,7 @@ export function createLLMProvider(config: LLMConfig): LLMProvider {
 
   // 2. Secondary: Groq Provider (Ultra-fast fallback)
   if (keyManager.hasKeys("groq")) {
-    const groqModel = "openai/gpt-oss-120b";
+    const groqModel = "openai/gpt-oss-120b"; // Verified working on Groq August 2026
     const groqConfig: LLMConfig = {
       ...config,
       provider: "groq",

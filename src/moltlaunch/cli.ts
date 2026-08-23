@@ -193,15 +193,27 @@ export async function submitWork(
   const t = inMemoryTasks.find((item) => item.id === taskId);
   if (t) {
     t.status = "submitted";
+    t.result = result;
     saveTasksToDisk().catch(() => {});
 
     // Real-World Dispatch Bridge: Extract URL and auto-post solution to GitHub issue/PR
     const urlMatch = t.task.match(/(https:\/\/github\.com\/[^\s\)]+)/i);
     if (urlMatch && urlMatch[1]) {
       const cleanUrl = urlMatch[1].replace(/[\.,\);]+$/, "");
-      dispatchGitHubSolution(cleanUrl, result).catch((err) => {
-        console.warn("[Dispatch Warning] Failed to post to GitHub:", err.message);
-      });
+      try {
+        const dispatchResult = await dispatchGitHubSolution(cleanUrl, result);
+        if (dispatchResult.success) {
+          console.log(`✅ [Submit] GitHub dispatch successful: ${dispatchResult.reason}`);
+          if (dispatchResult.prUrl) console.log(`   PR: ${dispatchResult.prUrl}`);
+          if (dispatchResult.commentUrl) console.log(`   Comment: ${dispatchResult.commentUrl}`);
+        } else {
+          console.warn(`⚠️ [Submit] GitHub dispatch failed: ${dispatchResult.reason}`);
+        }
+      } catch (err: any) {
+        console.warn("[Submit] GitHub dispatch error:", err.message);
+      }
+    } else {
+      console.log(`[Submit] No GitHub URL found in task description, solution saved locally only.`);
     }
   }
 }
