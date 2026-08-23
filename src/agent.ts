@@ -131,7 +131,7 @@ export async function startAgent(): Promise<http.Server> {
 }
 
 function startKeepAlive() {
-  const externalUrl = process.env.RENDER_EXTERNAL_URL || process.env.PUBLIC_URL || "https://agentclaw-fn13.onrender.com";
+  const externalUrl = process.env.RENDER_EXTERNAL_URL || process.env.PUBLIC_URL || "https://agentclaw-cayj.onrender.com";
   const pingIntervalMs = 8 * 60 * 1000; // Ping every 8 minutes (Render sleeps at 15m)
 
   console.log(`[Keep-Alive] 📡 24/7 Cloud Keep-Alive Pinger active (${externalUrl})`);
