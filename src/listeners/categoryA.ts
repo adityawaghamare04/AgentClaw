@@ -41,15 +41,23 @@ const MAX_NEW_TASKS_PER_SCAN = 10;
 const platformStatsMap: Record<string, PlatformStat> = {
   github_bounty: { id: "github_bounty", name: "GitHub Bounty Issues", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
   github_algora: { id: "github_algora", name: "Algora / Bountycaster Streams", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
-  github_helpwanted: { id: "github_helpwanted", name: "GitHub Help-Wanted Stream", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
-  github_goodfirst: { id: "github_goodfirst", name: "GitHub Good-First-Issue Stream", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
   github_real: { id: "github_real", name: "GitHub Real Label Stream", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
-  github_redeem: { id: "github_redeem", name: "GitHub Redeem Label Stream", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
-  github_bug: { id: "github_bug", name: "GitHub Bug Fix Stream", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
-  github_enhancement: { id: "github_enhancement", name: "GitHub Enhancement Stream", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
-  github_foundation_mission: { id: "github_foundation_mission", name: "Foundation Mission Requests ($)", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
-  github_delegate_mission: { id: "github_delegate_mission", name: "Delegate Mission Requests ($)", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
-  github_contribution_opportunity: { id: "github_contribution_opportunity", name: "Contribution Opportunities ($)", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
+  github_redeem: { id: "github_redeem", name: "GitHub Redeem Stream", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
+  github_del_mission: { id: "github_del_mission", name: "Delegate Mission Requests", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
+  github_found_mission: { id: "github_found_mission", name: "Foundation Mission Requests", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
+  github_contrib_opp: { id: "github_contrib_opp", name: "Contribution Opportunities", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
+  github_eco_idea: { id: "github_eco_idea", name: "Ecosystem Project Ideas", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
+  github_draft_idea: { id: "github_draft_idea", name: "Draft Project Ideas", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
+  github_intent_1: { id: "github_intent_1", name: "Grant Intent #1 Stream", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
+  github_intent_3: { id: "github_intent_3", name: "Grant Intent #3 Stream", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
+  github_intent_apps: { id: "github_intent_apps", name: "Intent: Novel Applications", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
+  github_intent_decent: { id: "github_intent_decent", name: "Intent: Technical Decentralization", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
+  github_effort_small: { id: "github_effort_small", name: "Effort: Small Stream", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
+  github_effort_med: { id: "github_effort_med", name: "Effort: Medium Stream", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
+  github_goodfirst: { id: "github_goodfirst", name: "Good First Issue Stream", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
+  github_helpwanted: { id: "github_helpwanted", name: "Help Wanted Stream", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
+  github_bug: { id: "github_bug", name: "Bug Fix Stream", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
+  github_enhancement: { id: "github_enhancement", name: "Enhancement Stream", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
   github_open_bounties: { id: "github_open_bounties", name: "Open Bounty & Crypto Grants", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
   moltlaunch: { id: "moltlaunch", name: "MoltLaunch Network", category: "AI Marketplace", scanCount: 1, lastScanned: "Live Stream", bountiesFound: 0, status: "Active" },
 };
@@ -117,34 +125,35 @@ async function pollAllCategoryAPlatforms() {
   try {
     const items: BountyItem[] = [];
 
-    // Broad, high-yielding search queries across user-specified GitHub label streams
-    const [ghBounty, ghAlgora, ghHelp, ghGood, ghReal, ghRedeem, ghBug, ghEnhance, ghFoundMission, ghDelMission, ghContribOpp, ghOpen] = await Promise.allSettled([
+    // All high-yield search queries across bounties, grants, missions, intents, and solvability streams
+    const results = await Promise.allSettled([
       pollGitHubQuery("label:bounty", "github_bounty", "GitHub Bounty Issues"),
       pollGitHubQuery("body:\"/bounty\"", "github_algora", "Algora Bounty Issues"),
-      pollGitHubQuery("label:\"help wanted\"", "github_helpwanted", "GitHub Help-Wanted Stream"),
-      pollGitHubQuery("label:\"good first issue\"", "github_goodfirst", "GitHub Good-First Stream"),
       pollGitHubQuery("label:real", "github_real", "GitHub Real Label Stream"),
       pollGitHubQuery("label:redeem", "github_redeem", "GitHub Redeem Stream"),
+      pollGitHubQuery("label:\"Delegate Mission Request\"", "github_del_mission", "Delegate Mission Requests"),
+      pollGitHubQuery("label:\"Foundation Mission Request\"", "github_found_mission", "Foundation Mission Requests"),
+      pollGitHubQuery("label:\"Contribution Opportunity\"", "github_contrib_opp", "Contribution Opportunities"),
+      pollGitHubQuery("label:\"Ecosystem Project Idea\"", "github_eco_idea", "Ecosystem Project Ideas"),
+      pollGitHubQuery("label:\"Draft Project Idea\"", "github_draft_idea", "Draft Project Ideas"),
+      pollGitHubQuery("label:\"Intent #1\"", "github_intent_1", "Grant Intent #1"),
+      pollGitHubQuery("label:\"Intent #3\"", "github_intent_3", "Grant Intent #3"),
+      pollGitHubQuery("label:\"Intent: Novel Applications\"", "github_intent_apps", "Intent: Novel Applications"),
+      pollGitHubQuery("label:\"Intent: Technical Decentralization\"", "github_intent_decent", "Intent: Technical Decentralization"),
+      pollGitHubQuery("label:\"Estimated Effort: Small\"", "github_effort_small", "Effort: Small"),
+      pollGitHubQuery("label:\"Estimated Effort: Medium\"", "github_effort_med", "Effort: Medium"),
+      pollGitHubQuery("label:\"good first issue\"", "github_goodfirst", "GitHub Good-First Stream"),
+      pollGitHubQuery("label:\"help wanted\"", "github_helpwanted", "GitHub Help-Wanted Stream"),
       pollGitHubQuery("label:bug", "github_bug", "GitHub Bug Fix Stream"),
       pollGitHubQuery("label:enhancement", "github_enhancement", "GitHub Enhancement Stream"),
-      pollGitHubQuery("label:\"Foundation Mission Request\"", "github_foundation_mission", "Foundation Mission Requests"),
-      pollGitHubQuery("label:\"Delegate Mission Request\"", "github_delegate_mission", "Delegate Mission Requests"),
-      pollGitHubQuery("label:\"Contribution Opportunity\"", "github_contribution_opportunity", "Contribution Opportunities"),
       pollGitHubQuery("bounty", "github_open_bounties", "Open Bounty & Crypto Grants"),
     ]);
 
-    if (ghBounty.status === "fulfilled") items.push(...ghBounty.value);
-    if (ghAlgora.status === "fulfilled") items.push(...ghAlgora.value);
-    if (ghHelp.status === "fulfilled") items.push(...ghHelp.value);
-    if (ghGood.status === "fulfilled") items.push(...ghGood.value);
-    if (ghReal.status === "fulfilled") items.push(...ghReal.value);
-    if (ghRedeem.status === "fulfilled") items.push(...ghRedeem.value);
-    if (ghBug.status === "fulfilled") items.push(...ghBug.value);
-    if (ghEnhance.status === "fulfilled") items.push(...ghEnhance.value);
-    if (ghFoundMission.status === "fulfilled") items.push(...ghFoundMission.value);
-    if (ghDelMission.status === "fulfilled") items.push(...ghDelMission.value);
-    if (ghContribOpp.status === "fulfilled") items.push(...ghContribOpp.value);
-    if (ghOpen.status === "fulfilled") items.push(...ghOpen.value);
+    for (const res of results) {
+      if (res.status === "fulfilled") {
+        items.push(...res.value);
+      }
+    }
 
     let newCount = 0;
     for (const item of items) {
