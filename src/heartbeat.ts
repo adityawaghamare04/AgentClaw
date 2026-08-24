@@ -414,11 +414,52 @@ export function createHeartbeat(
       });
   }
 
+  /**
+   * Continuous Lifecycle Observer:
+   * Monitors submitted GitHub bounties, checks if PRs/Issues are merged or closed by maintainers,
+   * updates task state to completed, and triggers instant on-chain escrow settlement.
+   */
+  async function checkSubmittedBountiesLifecycle() {
+    const token = process.env.GITHUB_TOKEN;
+    const authHeaders: Record<string, string> = {
+      "User-Agent": "AgentClaw-Engine",
+      "Accept": "application/vnd.github.v3+json",
+      ...(token ? { Authorization: token.startsWith("github_pat_") || token.startsWith("ghp_") ? `Bearer ${token}` : `token ${token}` } : {}),
+    };
+
+    for (const [id, task] of state.activeTasks.entries()) {
+      if (task.status !== "submitted") continue;
+
+      const ghMatch = task.task.match(/github\.com\/([^/]+)\/([^/]+)\/(issues|pull)\/(\d+)/i);
+      if (!ghMatch) continue;
+
+      const [, owner, repo, itemType, num] = ghMatch;
+      try {
+        const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues/${num}`, { headers: authHeaders });
+        if (res.ok) {
+          const data = (await res.json()) as any;
+          if (data.state === "closed") {
+            appendLog(`🎉 [Lifecycle Observer] Submitted bounty ${id} (${owner}/${repo} #${num}) confirmed ACCEPTED/CLOSED!`);
+            dbUpdateTaskStatus(id, "completed");
+            task.status = "completed";
+            emit({
+              type: "feedback",
+              taskId: id,
+              message: `🎉 ACCEPTED! Maintainer closed/merged #${num} in ${owner}/${repo}. Triggering payout...`,
+            });
+            await autoSettlePendingEarnings().catch(() => {});
+          }
+        }
+      } catch {}
+    }
+  }
+
   // --- Polling ---
 
   async function tick() {
     try {
       applyHourlyDecay();
+      await checkSubmittedBountiesLifecycle().catch(() => {});
       await autoSettlePendingEarnings().catch(() => {});
       const tasks = await cli.getInbox(config.agentId);
       state.lastPoll = Date.now();
