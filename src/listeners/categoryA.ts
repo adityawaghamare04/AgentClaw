@@ -35,14 +35,18 @@ interface BountyItem {
 
 const seenBounties = new Set<string>();
 
-// Max new tasks to ingest per scan cycle — prevents API key exhaustion
-const MAX_NEW_TASKS_PER_SCAN = 5;
+// Max new tasks to ingest per scan cycle
+const MAX_NEW_TASKS_PER_SCAN = 10;
 
 const platformStatsMap: Record<string, PlatformStat> = {
   github_bounty: { id: "github_bounty", name: "GitHub Bounty Issues", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
   github_algora: { id: "github_algora", name: "Algora / Bountycaster Streams", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
   github_helpwanted: { id: "github_helpwanted", name: "GitHub Help-Wanted Stream", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
   github_goodfirst: { id: "github_goodfirst", name: "GitHub Good-First-Issue Stream", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
+  github_real: { id: "github_real", name: "GitHub Real Label Stream", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
+  github_redeem: { id: "github_redeem", name: "GitHub Redeem Label Stream", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
+  github_bug: { id: "github_bug", name: "GitHub Bug Fix Stream", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
+  github_enhancement: { id: "github_enhancement", name: "GitHub Enhancement Stream", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
   github_open_bounties: { id: "github_open_bounties", name: "Open Bounty & Crypto Grants", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
   moltlaunch: { id: "moltlaunch", name: "MoltLaunch Network", category: "AI Marketplace", scanCount: 1, lastScanned: "Live Stream", bountiesFound: 0, status: "Active" },
 };
@@ -110,12 +114,16 @@ async function pollAllCategoryAPlatforms() {
   try {
     const items: BountyItem[] = [];
 
-    // Broad, high-yielding search queries across all GitHub issue streams
-    const [ghBounty, ghAlgora, ghHelp, ghGood, ghOpen] = await Promise.allSettled([
+    // Broad, high-yielding search queries across user-specified GitHub label streams
+    const [ghBounty, ghAlgora, ghHelp, ghGood, ghReal, ghRedeem, ghBug, ghEnhance, ghOpen] = await Promise.allSettled([
       pollGitHubQuery("label:bounty", "github_bounty", "GitHub Bounty Issues"),
       pollGitHubQuery("body:\"/bounty\"", "github_algora", "Algora Bounty Issues"),
       pollGitHubQuery("label:\"help wanted\"", "github_helpwanted", "GitHub Help-Wanted Stream"),
       pollGitHubQuery("label:\"good first issue\"", "github_goodfirst", "GitHub Good-First Stream"),
+      pollGitHubQuery("label:real", "github_real", "GitHub Real Label Stream"),
+      pollGitHubQuery("label:redeem", "github_redeem", "GitHub Redeem Stream"),
+      pollGitHubQuery("label:bug", "github_bug", "GitHub Bug Fix Stream"),
+      pollGitHubQuery("label:enhancement", "github_enhancement", "GitHub Enhancement Stream"),
       pollGitHubQuery("bounty", "github_open_bounties", "Open Bounty & Crypto Grants"),
     ]);
 
@@ -123,6 +131,10 @@ async function pollAllCategoryAPlatforms() {
     if (ghAlgora.status === "fulfilled") items.push(...ghAlgora.value);
     if (ghHelp.status === "fulfilled") items.push(...ghHelp.value);
     if (ghGood.status === "fulfilled") items.push(...ghGood.value);
+    if (ghReal.status === "fulfilled") items.push(...ghReal.value);
+    if (ghRedeem.status === "fulfilled") items.push(...ghRedeem.value);
+    if (ghBug.status === "fulfilled") items.push(...ghBug.value);
+    if (ghEnhance.status === "fulfilled") items.push(...ghEnhance.value);
     if (ghOpen.status === "fulfilled") items.push(...ghOpen.value);
 
     let newCount = 0;
