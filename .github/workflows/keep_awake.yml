@@ -10,10 +10,8 @@ jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping Agent Health Endpoints (Railway & Render)
+      - name: Ping Render Agent Health Endpoint
         run: |
-          echo "Pinging Railway Agent Health Endpoint..."
-          curl -s -w "\nHTTP_STATUS: %{http_code}\n" https://agentclaw-agent-production.up.railway.app/health
-          echo "Pinging Render Agent Health Endpoint..."
-          curl -s -w "\nHTTP_STATUS: %{http_code}\n" https://agentclaw-cayj.onrender.com/health
-
+          echo "Pinging https://agentclaw-cayj.onrender.com/health..."
+          RESPONSE=$(curl -s -w "\nHTTP_STATUS: %{http_code}\n" https://agentclaw-cayj.onrender.com/health)
+          echo "$RESPONSE"

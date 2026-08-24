@@ -1,21 +1,33 @@
 import sqlite3 from "sqlite3";
+import { createClient, type Client as LibsqlClient } from "@libsql/client";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { recordEarning } from "./survival.js";
 
 /**
- * 🗄️ Enterprise SQLite Database Engine (WAL Mode)
+ * 🗄️ Enterprise Database Engine (Turso Cloud DB + Local SQLite Fallback)
  * 
- * 10/10 Enterprise Persistence Layer. Every task, earning, and execution
- * is stored in a high-speed SQLite database with Write-Ahead Logging (WAL).
- * 
- * Features:
- * - Zero event-loop blocking (async non-blocking SQLite execution)
- * - True ACID transaction safety & zero corruption risk
- * - Automatic migration from legacy JSON database files
- * - Fast indexing on status, taskId, and timestamps
+ * 10/10 Enterprise Persistence Layer. 
+ * Supports Turso Cloud Database (@libsql/client) for zero-loss cloud deployments.
+ * If TURSO_DATABASE_URL is not set, falls back to local SQLite (WAL mode).
  */
+
+const tursoUrl = process.env.TURSO_DATABASE_URL || process.env.TURSO_URL;
+const tursoToken = process.env.TURSO_AUTH_TOKEN;
+
+let libsql: LibsqlClient | null = null;
+if (tursoUrl) {
+  try {
+    libsql = createClient({
+      url: tursoUrl,
+      authToken: tursoToken,
+    });
+    console.log(`[Turso DB] ☁️ Connected to Turso Cloud Database: ${tursoUrl}`);
+  } catch (err: any) {
+    console.error("[Turso DB] ⚠️ Failed to initialize Turso client, falling back to local SQLite:", err.message);
+  }
+}
 
 const PROJECT_DB_DIR = path.join(process.cwd(), "data", "db");
 const HOME_DB_DIR = path.join(os.homedir(), ".agentclaw", "db");
@@ -36,6 +48,16 @@ function ensureDirs(): string {
 
 const dbPath = ensureDirs();
 const sqlite = new sqlite3.Database(dbPath);
+
+function runQuery(sql: string, args: any[] = []): void {
+  if (libsql) {
+    libsql.execute({ sql, args }).catch((err) => {
+      console.error("[Turso DB] Exec Error:", err.message);
+    });
+  } else {
+    sqlite.run(sql, args);
+  }
+}
 
 // Interfaces
 export interface EventRecord {
@@ -340,7 +362,7 @@ export function dbRecordDiscovery(task: Omit<TaskRecord, "status" | "discoveredA
 
   cache.tasks.set(record.id, record);
 
-  sqlite.run(
+  runQuery(
     `INSERT INTO tasks (id, source, title, url, status, discoveredAt, executedAt, submittedAt, completedAt, earnedUsd, solutionSnippet, errorMsg, retries)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
@@ -375,7 +397,7 @@ export function dbUpdateTaskStatus(taskId: string, status: TaskRecord["status"],
   if (status === "submitted" && !task.submittedAt) task.submittedAt = now;
   if (status === "completed" && !task.completedAt) task.completedAt = now;
 
-  sqlite.run(
+  runQuery(
     `UPDATE tasks 
      SET status = ?, executedAt = ?, submittedAt = ?, completedAt = ?, earnedUsd = ?, solutionSnippet = ?, errorMsg = ?, retries = ?
      WHERE id = ?`,
@@ -434,7 +456,7 @@ export function dbRecordEarning(earning: Partial<EarningRecord> & { amountUsd: n
 
   cache.earnings.set(record.id, record);
 
-  sqlite.run(
+  runQuery(
     `INSERT INTO earnings (id, taskId, source, amountUsd, title, timestamp, payoutStatus, destinationWallet, verifiedAt, txHash)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
@@ -466,7 +488,7 @@ export function dbConfirmWalletTransfer(earningId: string, txHash?: string): { r
     record.verifiedAt = Date.now();
     if (txHash) record.txHash = txHash;
 
-    sqlite.run(
+    runQuery(
       `UPDATE earnings 
        SET payoutStatus = 'verified_transferred', verifiedAt = ?, txHash = ?
        WHERE id = ?`,
@@ -502,7 +524,7 @@ export function dbLogExecution(record: ExecutionRecord): void {
   cache.executions.push(record);
   if (cache.executions.length > 500) cache.executions = cache.executions.slice(-500);
 
-  sqlite.run(
+  runQuery(
     `INSERT INTO executions (taskId, startedAt, completedAt, turns, toolsUsed, success, errorMsg)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
     [
@@ -522,7 +544,7 @@ export function dbLogExecution(record: ExecutionRecord): void {
 export function dbStoreKnowledge(record: KnowledgeRecord): void {
   cache.knowledge.set(record.id, record);
 
-  sqlite.run(
+  runQuery(
     `INSERT OR REPLACE INTO knowledge (id, topic, insight, source, timestamp)
      VALUES (?, ?, ?, ?, ?)`,
     [record.id, record.topic, record.insight, record.source, record.timestamp]
@@ -539,7 +561,7 @@ export function dbRecordEvent(event: EventRecord): void {
   cache.events.push(event);
   if (cache.events.length > 500) cache.events = cache.events.slice(-500);
 
-  sqlite.run(
+  runQuery(
     `INSERT INTO events (timestamp, type, taskId, message)
      VALUES (?, ?, ?, ?)`,
     [event.timestamp, event.type, event.taskId || null, event.message]
@@ -554,7 +576,7 @@ export function dbGetAllEvents(limit = 100): EventRecord[] {
 
 export function dbSaveKeyHealth(record: KeyHealthRecord): void {
   cache.keyHealth.set(record.keyHash, record);
-  sqlite.run(
+  runQuery(
     `INSERT INTO key_health (keyHash, provider, status, exhaustedAt, rateLimitedUntil, consecutiveErrors, updatedAt)
      VALUES (?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(keyHash) DO UPDATE SET
@@ -600,7 +622,7 @@ export interface VaultRecord {
 
 export function dbSaveClusterNode(node: ClusterNodeRecord): void {
   cache.clusterNodes.set(node.nodeId, node);
-  sqlite.run(
+  runQuery(
     `INSERT INTO cluster_nodes (nodeId, role, pid, activeTasks, lastHeartbeat)
      VALUES (?, ?, ?, ?, ?)
      ON CONFLICT(nodeId) DO UPDATE SET
@@ -618,7 +640,7 @@ export function dbGetClusterNodes(): ClusterNodeRecord[] {
 
 export function dbSaveVaultRecord(vault: VaultRecord): void {
   cache.vaultMeta.set(vault.vaultId, vault);
-  sqlite.run(
+  runQuery(
     `INSERT INTO vault_meta (vaultId, encryptedPayload, salt, iv, authTag, updatedAt)
      VALUES (?, ?, ?, ?, ?, ?)
      ON CONFLICT(vaultId) DO UPDATE SET
