@@ -47,6 +47,9 @@ const platformStatsMap: Record<string, PlatformStat> = {
   github_redeem: { id: "github_redeem", name: "GitHub Redeem Label Stream", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
   github_bug: { id: "github_bug", name: "GitHub Bug Fix Stream", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
   github_enhancement: { id: "github_enhancement", name: "GitHub Enhancement Stream", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
+  github_foundation_mission: { id: "github_foundation_mission", name: "Foundation Mission Requests ($)", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
+  github_delegate_mission: { id: "github_delegate_mission", name: "Delegate Mission Requests ($)", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
+  github_contribution_opportunity: { id: "github_contribution_opportunity", name: "Contribution Opportunities ($)", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
   github_open_bounties: { id: "github_open_bounties", name: "Open Bounty & Crypto Grants", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
   moltlaunch: { id: "moltlaunch", name: "MoltLaunch Network", category: "AI Marketplace", scanCount: 1, lastScanned: "Live Stream", bountiesFound: 0, status: "Active" },
 };
@@ -115,7 +118,7 @@ async function pollAllCategoryAPlatforms() {
     const items: BountyItem[] = [];
 
     // Broad, high-yielding search queries across user-specified GitHub label streams
-    const [ghBounty, ghAlgora, ghHelp, ghGood, ghReal, ghRedeem, ghBug, ghEnhance, ghOpen] = await Promise.allSettled([
+    const [ghBounty, ghAlgora, ghHelp, ghGood, ghReal, ghRedeem, ghBug, ghEnhance, ghFoundMission, ghDelMission, ghContribOpp, ghOpen] = await Promise.allSettled([
       pollGitHubQuery("label:bounty", "github_bounty", "GitHub Bounty Issues"),
       pollGitHubQuery("body:\"/bounty\"", "github_algora", "Algora Bounty Issues"),
       pollGitHubQuery("label:\"help wanted\"", "github_helpwanted", "GitHub Help-Wanted Stream"),
@@ -124,6 +127,9 @@ async function pollAllCategoryAPlatforms() {
       pollGitHubQuery("label:redeem", "github_redeem", "GitHub Redeem Stream"),
       pollGitHubQuery("label:bug", "github_bug", "GitHub Bug Fix Stream"),
       pollGitHubQuery("label:enhancement", "github_enhancement", "GitHub Enhancement Stream"),
+      pollGitHubQuery("label:\"Foundation Mission Request\"", "github_foundation_mission", "Foundation Mission Requests"),
+      pollGitHubQuery("label:\"Delegate Mission Request\"", "github_delegate_mission", "Delegate Mission Requests"),
+      pollGitHubQuery("label:\"Contribution Opportunity\"", "github_contribution_opportunity", "Contribution Opportunities"),
       pollGitHubQuery("bounty", "github_open_bounties", "Open Bounty & Crypto Grants"),
     ]);
 
@@ -135,6 +141,9 @@ async function pollAllCategoryAPlatforms() {
     if (ghRedeem.status === "fulfilled") items.push(...ghRedeem.value);
     if (ghBug.status === "fulfilled") items.push(...ghBug.value);
     if (ghEnhance.status === "fulfilled") items.push(...ghEnhance.value);
+    if (ghFoundMission.status === "fulfilled") items.push(...ghFoundMission.value);
+    if (ghDelMission.status === "fulfilled") items.push(...ghDelMission.value);
+    if (ghContribOpp.status === "fulfilled") items.push(...ghContribOpp.value);
     if (ghOpen.status === "fulfilled") items.push(...ghOpen.value);
 
     let newCount = 0;
