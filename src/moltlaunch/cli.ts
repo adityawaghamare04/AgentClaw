@@ -133,6 +133,12 @@ export async function getAgentByWallet(address: string): Promise<AgentInfo | nul
 // --- Task operations ---
 
 export function addTaskToInbox(task: Task): void {
+  // Reject free / $0 / unpaid tasks — process ONLY verified monetary bounties
+  const budget = parseFloat(task.budgetWei || "0");
+  if (isNaN(budget) || budget <= 0) {
+    return;
+  }
+
   if (!inMemoryTasks.some((t) => t.id === task.id)) {
     inMemoryTasks.push(task);
     // Queue Throttling: Cap task inbox at 500 items to prevent Node.js heap overflow

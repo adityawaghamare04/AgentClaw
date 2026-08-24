@@ -39,11 +39,9 @@ const seenBounties = new Set<string>();
 const MAX_NEW_TASKS_PER_SCAN = 5;
 
 const platformStatsMap: Record<string, PlatformStat> = {
-  github_algora: { id: "github_algora", name: "Algora GitHub Bounties", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
-  github_bounty: { id: "github_bounty", name: "GitHub Bounty Issues", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
-  github_paid: { id: "github_paid", name: "GitHub Paid/Reward Streams", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
-  github_helpwanted: { id: "github_helpwanted", name: "GitHub Help-Wanted Issues", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
-  github_goodfirst: { id: "github_goodfirst", name: "GitHub Good-First-Issue", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
+  github_algora: { id: "github_algora", name: "Algora GitHub Bounties ($)", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
+  github_paid: { id: "github_paid", name: "Paid/Reward Label Bounties", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
+  github_crypto: { id: "github_crypto", name: "Base / Crypto Bounties (USDC/ETH)", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
   moltlaunch: { id: "moltlaunch", name: "MoltLaunch Network", category: "AI Marketplace", scanCount: 1, lastScanned: "Live Stream", bountiesFound: 0, status: "Active" },
 };
 
@@ -52,7 +50,7 @@ export function getPlatformStats(): PlatformStat[] {
 }
 
 export function startCategoryAListeners() {
-  console.log("[Category A] 🌐 GitHub High-Pay Bounty Scanner active across 5 issue streams.");
+  console.log("[Category A] 🌐 GitHub Verified Paid-Bounty Scanner active (Real Money / Base Mainnet / Algora only).");
 
   // Run initial poll after 5 seconds, then every 10 minutes (conserve API quota)
   setTimeout(pollAllCategoryAPlatforms, 5_000);
@@ -68,13 +66,53 @@ function updateStat(platformId: string, countNew: number) {
   }
 }
 
-function extractBudgetUsd(text: string): number | undefined {
+/**
+ * Strict Monetary Budget Parser & Testnet Filter
+ * Strictly requires real monetary value (USD, ETH, USDC, Base Mainnet tokens).
+ * Strictly excludes testnets (Sepolia, Goerli, Mumbai), faucets, mock tokens, and free issues.
+ */
+function extractBudgetUsd(text: string, isPaidStream: boolean): number | undefined {
   if (!text) return undefined;
-  const match = text.match(/\/bounty\s+\$?(\d+)/i) || text.match(/\$(\d{2,5})/);
-  if (match && match[1]) {
-    const val = parseInt(match[1].replace(/,/g, ""), 10);
+
+  // Reject any testnet / fake currency keywords
+  if (/testnet|sepolia|goerli|mumbai|faucet|mock|play\s*money|demo\s*token/i.test(text)) {
+    return undefined;
+  }
+
+  // 1. Algora command syntax: /bounty $100 or /bounty 100
+  const algoraMatch = text.match(/\/bounty\s+\$?(\d+)/i);
+  if (algoraMatch && algoraMatch[1]) {
+    const val = parseInt(algoraMatch[1], 10);
     if (!isNaN(val) && val > 0 && val < 50000) return val;
   }
+
+  // 2. Explicit USD amount: $50, $100, $500 (min $10 to avoid false positives)
+  const usdMatch = text.match(/\$(\d{2,5})/);
+  if (usdMatch && usdMatch[1]) {
+    const val = parseInt(usdMatch[1], 10);
+    if (!isNaN(val) && val >= 10 && val < 50000) return val;
+  }
+
+  // 3. USDC / ETH on Base Mainnet
+  const usdcMatch = text.match(/(\d{2,5})\s*USDC/i);
+  if (usdcMatch && usdcMatch[1]) {
+    const val = parseInt(usdcMatch[1], 10);
+    if (!isNaN(val) && val >= 10) return val;
+  }
+
+  const ethMatch = text.match(/([\d\.]+)\s*ETH/i);
+  if (ethMatch && ethMatch[1]) {
+    const ethVal = parseFloat(ethMatch[1]);
+    if (!isNaN(ethVal) && ethVal >= 0.005) {
+      return Math.round(ethVal * 2500); // Approximate ETH value in USD
+    }
+  }
+
+  // If coming from a verified paid stream (e.g. label:bounty or body:"/bounty"), default to $50 minimum verified bounty
+  if (isPaidStream) {
+    return 50;
+  }
+
   return undefined;
 }
 
@@ -82,29 +120,31 @@ async function pollAllCategoryAPlatforms() {
   try {
     const items: BountyItem[] = [];
 
-    // Fetch from GitHub — including Algora bounties, paid/reward issues, and standard streams
-    const [ghAlgora, ghBounty, ghPaid, ghHelp, ghGood] = await Promise.allSettled([
-      pollGitHubQuery("body:\"/bounty\"", "github_algora", "Algora Bounty Issues"),
-      pollGitHubQuery("label:bounty", "github_bounty", "GitHub Bounty Issues"),
-      pollGitHubQuery("label:paid OR label:reward", "github_paid", "GitHub Paid/Reward Streams"),
-      pollGitHubQuery("label:\"help wanted\"", "github_helpwanted", "GitHub Help-Wanted Issues"),
-      pollGitHubQuery("label:\"good first issue\"", "github_goodfirst", "GitHub Good-First-Issue"),
+    // Search ONLY for explicit paid bounties (Algora, paid labels, USDC/ETH/Base)
+    // Exclude testnets explicitly in the GitHub API search queries
+    const [ghAlgora, ghPaid, ghCrypto] = await Promise.allSettled([
+      pollGitHubQuery("body:\"/bounty\" -testnet -sepolia -goerli", "github_algora", "Algora Bounty Issues"),
+      pollGitHubQuery("(label:bounty OR label:paid OR label:reward) -testnet -sepolia -goerli", "github_paid", "Paid/Reward Bounties"),
+      pollGitHubQuery("(\"bounty $\" OR \"bounty USDC\" OR \"bounty ETH\") -testnet -sepolia", "github_crypto", "Base/Crypto Bounties"),
     ]);
 
     if (ghAlgora.status === "fulfilled") items.push(...ghAlgora.value);
-    if (ghBounty.status === "fulfilled") items.push(...ghBounty.value);
     if (ghPaid.status === "fulfilled") items.push(...ghPaid.value);
-    if (ghHelp.status === "fulfilled") items.push(...ghHelp.value);
-    if (ghGood.status === "fulfilled") items.push(...ghGood.value);
+    if (ghCrypto.status === "fulfilled") items.push(...ghCrypto.value);
 
     let newCount = 0;
     for (const item of items) {
       if (seenBounties.has(item.id)) continue;
       seenBounties.add(item.id);
 
-      // CAP: Only ingest a limited number of new tasks per scan to prevent API exhaustion
+      // STRICT FILTER: Skip unpaid / free / testnet issues entirely
+      if (!item.budgetUsd || item.budgetUsd <= 0) {
+        continue;
+      }
+
+      // CAP: Only ingest a limited number of new paid tasks per scan
       if (newCount >= MAX_NEW_TASKS_PER_SCAN) {
-        console.log(`[Category A] ⏸️ Hit per-scan cap (${MAX_NEW_TASKS_PER_SCAN}). Remaining tasks queued for next scan.`);
+        console.log(`[Category A] ⏸️ Hit per-scan cap (${MAX_NEW_TASKS_PER_SCAN}). Remaining paid bounties queued for next scan.`);
         break;
       }
 
@@ -115,9 +155,9 @@ async function pollAllCategoryAPlatforms() {
         if (firstKey) seenBounties.delete(firstKey);
       }
 
-      const budgetStr = item.budgetUsd ? ` [Budget: $${item.budgetUsd}]` : "";
-      const logMsg = `[${item.source}] Discovered: "${item.title}"${budgetStr} (${item.url})`;
-      console.log(`[Category A] 🎯 ${logMsg}`);
+      const budgetStr = ` [Reward: $${item.budgetUsd}]`;
+      const logMsg = `[${item.source}] Verified Paid Bounty: "${item.title}"${budgetStr} (${item.url})`;
+      console.log(`[Category A] 💰 ${logMsg}`);
       appendLog(logMsg);
 
       // Record in persistent DB
@@ -128,19 +168,19 @@ async function pollAllCategoryAPlatforms() {
         url: item.url,
       });
 
-      // Auto-ingest GitHub bounties into AgentClaw task inbox
+      // Auto-ingest ONLY verified paid bounties into AgentClaw task inbox
       addTaskToInbox({
         id: item.id,
         agentId: "agent_claw",
         clientAddress: item.source || "CategoryA_Feed",
         task: `[${item.source}] ${item.title} — URL: ${item.url}. Details: ${item.snippet || item.title}`,
         status: "requested",
-        budgetWei: String(item.budgetUsd || 50),
+        budgetWei: String(item.budgetUsd),
         category: item.platformId || "bounty",
       });
     }
 
-    console.log(`[Category A] 🔎 Scanned GitHub streams. Ingested ${newCount} new tasks (cap: ${MAX_NEW_TASKS_PER_SCAN}).`);
+    console.log(`[Category A] 🔎 Scanned GitHub streams. Ingested ${newCount} verified paid bounties (cap: ${MAX_NEW_TASKS_PER_SCAN}).`);
   } catch (err: any) {
     console.warn("[Category A] Polling warning:", err.message);
   }
@@ -165,17 +205,20 @@ async function pollGitHubQuery(labelQuery: string, platformId: string, sourceNam
         for (const issue of data.items) {
           const bodyText = issue.body || "";
           const snippetText = bodyText ? bodyText.slice(0, 300) : issue.title;
-          const detectedBudget = extractBudgetUsd(`${issue.title} ${bodyText}`);
+          const isPaidStream = platformId === "github_algora" || platformId === "github_paid" || platformId === "github_crypto";
+          const detectedBudget = extractBudgetUsd(`${issue.title} ${bodyText}`, isPaidStream);
 
-          items.push({
-            id: `gh_${issue.id}`,
-            source: sourceName,
-            platformId,
-            title: issue.title,
-            url: issue.html_url,
-            budgetUsd: detectedBudget,
-            snippet: snippetText,
-          });
+          if (detectedBudget && detectedBudget > 0) {
+            items.push({
+              id: `gh_${issue.id}`,
+              source: sourceName,
+              platformId,
+              title: issue.title,
+              url: issue.html_url,
+              budgetUsd: detectedBudget,
+              snippet: snippetText,
+            });
+          }
         }
       }
     }
@@ -183,4 +226,5 @@ async function pollGitHubQuery(labelQuery: string, platformId: string, sourceNam
   updateStat(platformId, items.length);
   return items;
 }
+
 
