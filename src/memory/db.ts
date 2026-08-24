@@ -54,10 +54,143 @@ function runQuery(sql: string, args: any[] = []): void {
     libsql.execute({ sql, args }).catch((err) => {
       console.error("[Turso DB] Exec Error:", err.message);
     });
-  } else {
-    sqlite.run(sql, args);
+  }
+  sqlite.run(sql, args);
+}
+
+const SCHEMA_TABLES = [
+  `CREATE TABLE IF NOT EXISTS tasks (
+    id TEXT PRIMARY KEY,
+    source TEXT NOT NULL,
+    title TEXT NOT NULL,
+    url TEXT NOT NULL,
+    status TEXT NOT NULL,
+    discoveredAt INTEGER NOT NULL,
+    executedAt INTEGER,
+    submittedAt INTEGER,
+    completedAt INTEGER,
+    earnedUsd REAL,
+    solutionSnippet TEXT,
+    errorMsg TEXT,
+    retries INTEGER NOT NULL DEFAULT 0
+  );`,
+  `CREATE TABLE IF NOT EXISTS earnings (
+    id TEXT PRIMARY KEY,
+    taskId TEXT NOT NULL,
+    source TEXT NOT NULL,
+    amountUsd REAL NOT NULL,
+    title TEXT NOT NULL,
+    timestamp INTEGER NOT NULL,
+    payoutStatus TEXT NOT NULL,
+    destinationWallet TEXT NOT NULL,
+    verifiedAt INTEGER,
+    txHash TEXT
+  );`,
+  `CREATE TABLE IF NOT EXISTS executions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    taskId TEXT NOT NULL,
+    startedAt INTEGER NOT NULL,
+    completedAt INTEGER NOT NULL,
+    turns INTEGER NOT NULL,
+    toolsUsed TEXT NOT NULL,
+    success INTEGER NOT NULL,
+    errorMsg TEXT
+  );`,
+  `CREATE TABLE IF NOT EXISTS knowledge (
+    id TEXT PRIMARY KEY,
+    topic TEXT NOT NULL,
+    insight TEXT NOT NULL,
+    source TEXT NOT NULL,
+    timestamp INTEGER NOT NULL
+  );`,
+  `CREATE TABLE IF NOT EXISTS events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp INTEGER NOT NULL,
+    type TEXT NOT NULL,
+    taskId TEXT,
+    message TEXT NOT NULL
+  );`,
+  `CREATE TABLE IF NOT EXISTS key_health (
+    keyHash TEXT PRIMARY KEY,
+    provider TEXT NOT NULL,
+    status TEXT NOT NULL,
+    exhaustedAt INTEGER,
+    rateLimitedUntil INTEGER NOT NULL DEFAULT 0,
+    consecutiveErrors INTEGER NOT NULL DEFAULT 0,
+    updatedAt INTEGER NOT NULL
+  );`,
+  `CREATE TABLE IF NOT EXISTS cluster_nodes (
+    nodeId TEXT PRIMARY KEY,
+    role TEXT NOT NULL,
+    pid INTEGER NOT NULL,
+    activeTasks INTEGER NOT NULL DEFAULT 0,
+    lastHeartbeat INTEGER NOT NULL
+  );`,
+  `CREATE TABLE IF NOT EXISTS vault_meta (
+    vaultId TEXT PRIMARY KEY,
+    encryptedPayload TEXT NOT NULL,
+    salt TEXT NOT NULL,
+    iv TEXT NOT NULL,
+    authTag TEXT NOT NULL,
+    updatedAt INTEGER NOT NULL
+  );`,
+  `CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);`,
+  `CREATE INDEX IF NOT EXISTS idx_earnings_payout ON earnings(payoutStatus);`,
+  `CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events(timestamp);`,
+  `CREATE INDEX IF NOT EXISTS idx_key_health_provider ON key_health(provider);`
+];
+
+async function initTursoSchema() {
+  if (!libsql) return;
+  try {
+    for (const sql of SCHEMA_TABLES) {
+      await libsql.execute(sql);
+    }
+    console.log("[Turso DB] ✅ Turso database schema verified & all 8 tables created.");
+
+    // Load existing tasks from Turso into cache
+    const taskRes = await libsql.execute("SELECT * FROM tasks");
+    for (const row of taskRes.rows) {
+      cache.tasks.set(row.id as string, {
+        id: row.id as string,
+        source: row.source as string,
+        title: row.title as string,
+        url: row.url as string,
+        status: row.status as any,
+        discoveredAt: Number(row.discoveredAt),
+        executedAt: row.executedAt ? Number(row.executedAt) : undefined,
+        submittedAt: row.submittedAt ? Number(row.submittedAt) : undefined,
+        completedAt: row.completedAt ? Number(row.completedAt) : undefined,
+        earnedUsd: row.earnedUsd ? Number(row.earnedUsd) : undefined,
+        solutionSnippet: row.solutionSnippet ? (row.solutionSnippet as string) : undefined,
+        errorMsg: row.errorMsg ? (row.errorMsg as string) : undefined,
+        retries: Number(row.retries || 0),
+      });
+    }
+
+    // Load existing earnings from Turso into cache
+    const earnRes = await libsql.execute("SELECT * FROM earnings");
+    for (const row of earnRes.rows) {
+      cache.earnings.set(row.id as string, {
+        id: row.id as string,
+        taskId: row.taskId as string,
+        source: row.source as string,
+        amountUsd: Number(row.amountUsd),
+        title: row.title as string,
+        timestamp: Number(row.timestamp),
+        payoutStatus: row.payoutStatus as any,
+        destinationWallet: row.destinationWallet as string,
+        verifiedAt: row.verifiedAt ? Number(row.verifiedAt) : undefined,
+        txHash: row.txHash ? (row.txHash as string) : undefined,
+      });
+    }
+    console.log(`[Turso DB] ☁️ Restored ${cache.tasks.size} tasks and ${cache.earnings.size} earnings from Turso Cloud.`);
+  } catch (err: any) {
+    console.error("[Turso DB] Error setting up schema:", err.message);
   }
 }
+
+initTursoSchema();
 
 // Interfaces
 export interface EventRecord {
