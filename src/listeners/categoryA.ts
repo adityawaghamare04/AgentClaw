@@ -39,7 +39,9 @@ const seenBounties = new Set<string>();
 const MAX_NEW_TASKS_PER_SCAN = 5;
 
 const platformStatsMap: Record<string, PlatformStat> = {
+  github_algora: { id: "github_algora", name: "Algora GitHub Bounties", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
   github_bounty: { id: "github_bounty", name: "GitHub Bounty Issues", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
+  github_paid: { id: "github_paid", name: "GitHub Paid/Reward Streams", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
   github_helpwanted: { id: "github_helpwanted", name: "GitHub Help-Wanted Issues", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
   github_goodfirst: { id: "github_goodfirst", name: "GitHub Good-First-Issue", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
   moltlaunch: { id: "moltlaunch", name: "MoltLaunch Network", category: "AI Marketplace", scanCount: 1, lastScanned: "Live Stream", bountiesFound: 0, status: "Active" },
@@ -50,7 +52,7 @@ export function getPlatformStats(): PlatformStat[] {
 }
 
 export function startCategoryAListeners() {
-  console.log("[Category A] 🌐 GitHub Bounty Scanner active across 3 issue streams.");
+  console.log("[Category A] 🌐 GitHub High-Pay Bounty Scanner active across 5 issue streams.");
 
   // Run initial poll after 5 seconds, then every 10 minutes (conserve API quota)
   setTimeout(pollAllCategoryAPlatforms, 5_000);
@@ -66,18 +68,32 @@ function updateStat(platformId: string, countNew: number) {
   }
 }
 
+function extractBudgetUsd(text: string): number | undefined {
+  if (!text) return undefined;
+  const match = text.match(/\/bounty\s+\$?(\d+)/i) || text.match(/\$(\d{2,5})/);
+  if (match && match[1]) {
+    const val = parseInt(match[1].replace(/,/g, ""), 10);
+    if (!isNaN(val) && val > 0 && val < 50000) return val;
+  }
+  return undefined;
+}
+
 async function pollAllCategoryAPlatforms() {
   try {
     const items: BountyItem[] = [];
 
-    // Only fetch from GitHub — the ONLY source where we can actually submit PRs/comments
-    const [ghBounty, ghHelp, ghGood] = await Promise.allSettled([
+    // Fetch from GitHub — including Algora bounties, paid/reward issues, and standard streams
+    const [ghAlgora, ghBounty, ghPaid, ghHelp, ghGood] = await Promise.allSettled([
+      pollGitHubQuery("body:\"/bounty\"", "github_algora", "Algora Bounty Issues"),
       pollGitHubQuery("label:bounty", "github_bounty", "GitHub Bounty Issues"),
+      pollGitHubQuery("label:paid OR label:reward", "github_paid", "GitHub Paid/Reward Streams"),
       pollGitHubQuery("label:\"help wanted\"", "github_helpwanted", "GitHub Help-Wanted Issues"),
       pollGitHubQuery("label:\"good first issue\"", "github_goodfirst", "GitHub Good-First-Issue"),
     ]);
 
+    if (ghAlgora.status === "fulfilled") items.push(...ghAlgora.value);
     if (ghBounty.status === "fulfilled") items.push(...ghBounty.value);
+    if (ghPaid.status === "fulfilled") items.push(...ghPaid.value);
     if (ghHelp.status === "fulfilled") items.push(...ghHelp.value);
     if (ghGood.status === "fulfilled") items.push(...ghGood.value);
 
@@ -89,9 +105,7 @@ async function pollAllCategoryAPlatforms() {
       // CAP: Only ingest a limited number of new tasks per scan to prevent API exhaustion
       if (newCount >= MAX_NEW_TASKS_PER_SCAN) {
         console.log(`[Category A] ⏸️ Hit per-scan cap (${MAX_NEW_TASKS_PER_SCAN}). Remaining tasks queued for next scan.`);
-        // Remove from seen so they'll be picked up next cycle
-        seenBounties.delete(item.id);
-        continue;
+        break;
       }
 
       newCount++;
@@ -101,7 +115,8 @@ async function pollAllCategoryAPlatforms() {
         if (firstKey) seenBounties.delete(firstKey);
       }
 
-      const logMsg = `[${item.source}] Discovered: "${item.title}" (${item.url})`;
+      const budgetStr = item.budgetUsd ? ` [Budget: $${item.budgetUsd}]` : "";
+      const logMsg = `[${item.source}] Discovered: "${item.title}"${budgetStr} (${item.url})`;
       console.log(`[Category A] 🎯 ${logMsg}`);
       appendLog(logMsg);
 
@@ -120,7 +135,7 @@ async function pollAllCategoryAPlatforms() {
         clientAddress: item.source || "CategoryA_Feed",
         task: `[${item.source}] ${item.title} — URL: ${item.url}. Details: ${item.snippet || item.title}`,
         status: "requested",
-        budgetWei: String(item.budgetUsd || 25),
+        budgetWei: String(item.budgetUsd || 50),
         category: item.platformId || "bounty",
       });
     }
@@ -148,13 +163,18 @@ async function pollGitHubQuery(labelQuery: string, platformId: string, sourceNam
       const data = await res.json() as any;
       if (data.items) {
         for (const issue of data.items) {
+          const bodyText = issue.body || "";
+          const snippetText = bodyText ? bodyText.slice(0, 300) : issue.title;
+          const detectedBudget = extractBudgetUsd(`${issue.title} ${bodyText}`);
+
           items.push({
             id: `gh_${issue.id}`,
             source: sourceName,
             platformId,
             title: issue.title,
             url: issue.html_url,
-            snippet: issue.body ? issue.body.slice(0, 300) : issue.title,
+            budgetUsd: detectedBudget,
+            snippet: snippetText,
           });
         }
       }
@@ -163,3 +183,4 @@ async function pollGitHubQuery(labelQuery: string, platformId: string, sourceNam
   updateStat(platformId, items.length);
   return items;
 }
+

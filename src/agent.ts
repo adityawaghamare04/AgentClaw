@@ -137,13 +137,13 @@ function startKeepAlive() {
   console.log(`[Keep-Alive] 📡 24/7 Cloud Keep-Alive Pinger active (${externalUrl})`);
 
   setTimeout(() => {
-    fetch(`${externalUrl}/api/status`)
+    fetch(`${externalUrl}/health`)
       .then(() => console.log(`[Keep-Alive] ⚡ Initial ping successful`))
       .catch(() => {});
   }, 30000);
 
   setInterval(() => {
-    fetch(`${externalUrl}/api/status`)
+    fetch(`${externalUrl}/health`)
       .then(() => console.log(`[Keep-Alive] ⚡ 24/7 Keep-Alive ping sent to ${externalUrl}`))
       .catch((err) => console.warn(`[Keep-Alive] Ping note:`, err.message));
   }, pingIntervalMs);
@@ -151,11 +151,12 @@ function startKeepAlive() {
 
 function createServer(ctx: ServerContext): http.Server {
   const server = http.createServer((req, res) => {
-    // Restrict CORS to same-origin only — prevents cross-site request forgery
-    const allowedOrigin = `http://localhost:${PORT}`;
+    // Dynamic CORS configuration
+    const origin = req.headers.origin;
+    const allowedOrigin = origin || process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
     res.setHeader("Access-Control-Allow-Origin", allowedOrigin);
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Admin-Key");
 
     if (req.method === "OPTIONS") {
       res.writeHead(204);
@@ -165,6 +166,13 @@ function createServer(ctx: ServerContext): http.Server {
 
     const url = new URL(req.url ?? "/", `http://localhost:${PORT}`);
 
+    // Standalone lightweight health check endpoint for UptimeRobot & Render
+    if (url.pathname === "/health" || url.pathname === "/ping" || url.pathname === "/api/health") {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ status: "ok", mode: ctx.config ? "running" : "setup", uptime: process.uptime() }));
+      return;
+    }
+
     if (url.pathname.startsWith("/api/")) {
       handleApi(url.pathname, req, res, ctx);
       return;
@@ -173,7 +181,7 @@ function createServer(ctx: ServerContext): http.Server {
     serveStatic(url.pathname, res);
   });
 
-  server.listen(PORT, () => {
+  server.listen(PORT, "0.0.0.0", () => {
     console.log(`Dashboard: http://localhost:${PORT}`);
   });
 
@@ -213,7 +221,10 @@ function parseJsonBody<T>(raw: string): T {
 
 function isAuthorized(req: http.IncomingMessage): boolean {
   const secret = process.env.ADMIN_PASSWORD || process.env.ADMIN_SECRET;
-  if (!secret) return true;
+  if (!secret) {
+    // Fail-secure: reject unauthorized admin API calls in production mode if secret is unset
+    return process.env.NODE_ENV !== "production";
+  }
   const keyHeader = req.headers["x-admin-key"];
   const authHeader = req.headers["authorization"];
   const bearerToken = typeof authHeader === "string" && authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;

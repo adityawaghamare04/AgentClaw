@@ -12,6 +12,6 @@ jobs:
     steps:
       - name: Ping Render Agent Health Endpoint
         run: |
-          echo "Pinging https://agentclaw-cayj.onrender.com/api/status..."
-          RESPONSE=$(curl -s -w "\nHTTP_STATUS: %{http_code}\n" https://agentclaw-cayj.onrender.com/api/status)
+          echo "Pinging https://agentclaw-cayj.onrender.com/health..."
+          RESPONSE=$(curl -s -w "\nHTTP_STATUS: %{http_code}\n" https://agentclaw-cayj.onrender.com/health)
           echo "$RESPONSE"

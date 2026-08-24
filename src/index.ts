@@ -17,15 +17,18 @@ async function main() {
 
   const server = await startAgent();
 
-  // Open browser
-  const url = "http://localhost:3777";
-  const { execFile: execFileCb } = await import("node:child_process");
-  const opener = process.platform === "darwin"
-    ? "open"
-    : process.platform === "win32"
-      ? "start"
-      : "xdg-open";
-  execFileCb(opener, [url], { shell: process.platform === "win32" }, () => {});
+  // Open browser in local development mode only
+  if (process.env.NODE_ENV !== "production") {
+    const port = process.env.AGENTCLAW_PORT || process.env.CASHCLAW_PORT || process.env.PORT || "3777";
+    const url = `http://localhost:${port}`;
+    const { execFile: execFileCb } = await import("node:child_process");
+    const opener = process.platform === "darwin"
+      ? "open"
+      : process.platform === "win32"
+        ? "start"
+        : "xdg-open";
+    execFileCb(opener, [url], { shell: process.platform === "win32" }, () => {});
+  }
 
   // Graceful shutdown
   const shutdown = () => {

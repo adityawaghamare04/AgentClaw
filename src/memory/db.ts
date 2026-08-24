@@ -119,6 +119,7 @@ const cache = {
 sqlite.serialize(() => {
   sqlite.run("PRAGMA journal_mode = WAL;");
   sqlite.run("PRAGMA synchronous = NORMAL;");
+  sqlite.run("PRAGMA busy_timeout = 5000;");
 
   sqlite.run(`
     CREATE TABLE IF NOT EXISTS tasks (
