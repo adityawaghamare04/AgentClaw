@@ -228,11 +228,11 @@ function createOpenAICompatibleProvider(
       }
 
       // Use models that WORK with OpenAI-compatible endpoint + tool calling
-      // gemini-2.5-flash requires thought_signature passthrough (now supported)
-      // gemini-3.5-flash-lite is the most reliable for tool calling
+      // gemini-2.5-flash and gemini-3.5-flash-lite are deprecated/removed by Google
+      // gemini-3.6-flash is the recommended replacement model
       const GEMINI_MODEL_CASCADE = [
-        "gemini-3.5-flash-lite",
-        "gemini-2.5-flash",
+        "gemini-3.6-flash",
+        "gemini-3.5-flash",
       ];
       const GROQ_MODEL_CASCADE = [
         "openai/gpt-oss-120b",
@@ -462,7 +462,7 @@ export function createLLMProvider(config: LLMConfig): LLMProvider {
 
   // 1. Primary: Google Gemini Provider (if any key exists)
   if (keyManager.hasKeys("gemini")) {
-    const geminiModel = "gemini-3.5-flash-lite"; // Verified working with tool calling via OpenAI-compat
+    const geminiModel = "gemini-3.6-flash"; // Recommended replacement for deprecated Gemini models
     const geminiConfig: LLMConfig = {
       ...config,
       provider: "gemini",
