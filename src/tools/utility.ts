@@ -1,3 +1,4 @@
+/** Built by Aditya Waghamare */
 import type { Tool } from "./types.js";
 import { loadFeedback } from "../memory/feedback.js";
 import { appendLog } from "../memory/log.js";

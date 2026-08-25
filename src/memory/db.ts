@@ -1,3 +1,4 @@
+/** Built by Aditya Waghamare */
 import sqlite3 from "sqlite3";
 import { createClient, type Client as LibsqlClient } from "@libsql/client";
 import fs from "node:fs";

@@ -1,3 +1,4 @@
+/** Built by Aditya Waghamare */
 import WebSocket from "ws";
 import PQueue from "p-queue";
 import type { CashClawConfig } from "./config.js";

@@ -1,3 +1,4 @@
+/** Built by Aditya Waghamare */
 import React, { useEffect, useState } from "react";
 import { api, type PlatformStat } from "../lib/api";
 

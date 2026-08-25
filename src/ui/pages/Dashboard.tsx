@@ -1,3 +1,4 @@
+/** Built by Aditya Waghamare */
 import { useState, useEffect } from "react";
 import { api, type StatusData, type ActivityEvent, type StatsData, type KnowledgeEntry, type FeedbackEntry, type WalletInfo, type AgentCashBalance, type SurvivalState, type RevenueData, type TaskData } from "../lib/api.js";
 import { ethToUsd } from "../lib/ethPrice.js";

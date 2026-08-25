@@ -1,3 +1,4 @@
+/** Built by Aditya Waghamare */
 /** Convert USD to ETH string with 6 decimal places */
 export function usdToEth(usd: number, ethPrice: number): string {
   if (!ethPrice || ethPrice <= 0) return "0.000000";

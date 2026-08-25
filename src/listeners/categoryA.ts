@@ -1,3 +1,4 @@
+/** Built by Aditya Waghamare */
 import { appendLog } from "../memory/log.js";
 import { addTaskToInbox } from "../moltlaunch/cli.js";
 import { dbRecordDiscovery } from "../memory/db.js";

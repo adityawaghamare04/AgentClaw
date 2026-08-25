@@ -1,3 +1,4 @@
+/** Built by Aditya Waghamare */
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { createPublicClient, http, formatEther } from "viem";
 import { base } from "viem/chains";

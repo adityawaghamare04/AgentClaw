@@ -1,3 +1,4 @@
+/** Built by Aditya Waghamare */
 const BASE = "";
 
 function getHeaders(): Record<string, string> {

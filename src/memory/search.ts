@@ -1,3 +1,4 @@
+/** Built by Aditya Waghamare */
 import MiniSearch from "minisearch";
 import { loadKnowledge, type KnowledgeEntry } from "./knowledge.js";
 import { loadFeedback, type FeedbackEntry } from "./feedback.js";

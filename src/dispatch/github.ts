@@ -1,3 +1,4 @@
+/** Built by Aditya Waghamare */
 import { appendLog } from "../memory/log.js";
 
 export interface GitHubDispatchResult {

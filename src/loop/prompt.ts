@@ -1,3 +1,4 @@
+/** Built by Aditya Waghamare */
 import type { CashClawConfig } from "../config.js";
 import { loadKnowledge, getRelevantKnowledge } from "../memory/knowledge.js";
 import { searchMemory } from "../memory/search.js";

@@ -1,3 +1,4 @@
+/** Built by Aditya Waghamare */
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import type { Tool, ToolResult } from "./types.js";

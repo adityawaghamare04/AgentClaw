@@ -1,3 +1,4 @@
+/** Built by Aditya Waghamare */
 import { recordEarning } from "../memory/survival.js";
 
 /**

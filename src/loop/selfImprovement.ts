@@ -1,3 +1,4 @@
+/** Built by Aditya Waghamare */
 import type { LLMProvider, LLMMessage } from "../llm/types.js";
 import type { CashClawConfig } from "../config.js";
 import { loadKnowledge, storeKnowledge, type KnowledgeEntry } from "../memory/knowledge.js";

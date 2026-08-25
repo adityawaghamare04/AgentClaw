@@ -1,3 +1,4 @@
+/** Built by Aditya Waghamare */
 import { useState, useEffect } from "react";
 import { api, type ConfigData, type AgentInfo, type PersonalityData } from "../lib/api.js";
 import { ethToUsd, usdToEth } from "../lib/ethPrice.js";

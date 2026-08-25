@@ -1,3 +1,4 @@
+/** Built by Aditya Waghamare */
 import type { ToolDefinition } from "../llm/types.js";
 import type { CashClawConfig } from "../config.js";
 import type { Tool, ToolContext, ToolResult } from "./types.js";

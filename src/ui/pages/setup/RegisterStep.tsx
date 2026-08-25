@@ -1,3 +1,4 @@
+/** Built by Aditya Waghamare */
 import { useState, useRef, useEffect } from "react";
 import { api, type RegisterResult } from "../../lib/api.js";
 import { usdToEth } from "../../lib/ethPrice.js";

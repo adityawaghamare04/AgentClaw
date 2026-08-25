@@ -1,3 +1,4 @@
+/** Built by Aditya Waghamare */
 import { useState, useEffect } from "react";
 import { api, type TaskData, type EarningRecord, type RevenueData } from "../lib/api.js";
 import { formatEther } from "viem";

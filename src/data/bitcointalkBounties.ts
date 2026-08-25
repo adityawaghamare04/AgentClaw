@@ -1,3 +1,4 @@
+/** Built by Aditya Waghamare */
 export interface CuratedBounty {
   id: string;
   source: string;

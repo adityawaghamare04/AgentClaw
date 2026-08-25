@@ -1,3 +1,4 @@
+/** Built by Aditya Waghamare */
 import { useState, useEffect } from "react";
 import { api, type RevenueData, type EarningRecord, type SurvivalState } from "../lib/api.js";
 
