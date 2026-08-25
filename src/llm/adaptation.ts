@@ -401,12 +401,9 @@ class AutonomousModelAdapter {
     "nvidia/nemotron-3.5-content-safety:free",
     "openrouter/free",
     // Pre-blacklisted deprecated Gemini models (August 2026)
-    // gemini-2.5-flash returns 404, gemini-3.x requires thought_signature
+    // gemini-2.5-flash returns 404, gemini-3.5-flash-lite fails tool call validation
     "gemini-2.5-flash",
     "gemini-3.5-flash-lite",
-    "gemini-3.5-flash",
-    "gemini-3.6-flash",
-    "gemini-3.7-flash",
   ]);
   private discoveredFreeModels: string[] = [...DEFAULT_FREE_MODELS];
   private activePrimaryModel = "nvidia/nemotron-3-ultra-550b-a55b:free";
