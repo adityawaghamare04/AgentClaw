@@ -23,6 +23,10 @@ function extractUrls(text?: string): string[] {
 }
 
 function getTaskSubmissionUrl(t: TaskData): string {
+  if (t.url && (t.url.startsWith("http://") || t.url.startsWith("https://"))) {
+    return t.url;
+  }
+
   const urls = [...extractUrls(t.task), ...extractUrls(t.result)];
   if (urls.length > 0) return urls[0];
 

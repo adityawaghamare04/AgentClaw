@@ -314,6 +314,7 @@ function handleApi(
         mergedMap.set(dbt.id, {
           id: dbt.id,
           task: dbt.title,
+          url: dbt.url,
           status: dbt.status,
           quotedPriceWei: dbt.earnedUsd ? String(dbt.earnedUsd) : undefined,
           result: dbt.solutionSnippet,
@@ -330,6 +331,7 @@ function handleApi(
         mergedMap.set(at.id, {
           id: at.id,
           task: at.task,
+          url: (at as any).url || (at as any).taskUrl,
           status: at.status,
           quotedPriceWei: at.quotedPriceWei,
           ratedScore: at.ratedScore,

@@ -55,6 +55,7 @@ export interface TaskData {
   id: string;
   task: string;
   status: string;
+  url?: string;
   quotedPriceWei?: string;
   ratedScore?: number;
   result?: string;
