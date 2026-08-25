@@ -279,4 +279,6 @@ export const api = {
     declineKeywords: string[];
   }) => post<{ ok: boolean }>("/api/setup/specialization", spec),
   completeSetup: () => post<{ ok: boolean; mode: string }>("/api/setup/complete"),
+  addManualBounty: (bounty: { title: string; url: string; source: string; reward: number }) =>
+    post<{ ok: boolean }>("/api/manual-bounty", bounty),
 };

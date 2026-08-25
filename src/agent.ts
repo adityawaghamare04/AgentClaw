@@ -38,6 +38,7 @@ import {
   dbRecordEarning,
   dbGetAllTasks,
   dbGetAllEvents,
+  dbRecordDiscovery,
 } from "./memory/db.js";
 
 const PORT = Number(process.env.AGENTCLAW_PORT || process.env.CASHCLAW_PORT || process.env.PORT) || 3777;
@@ -490,6 +491,38 @@ function handleApi(
       });
       break;
 
+
+    case "/api/manual-bounty":
+      if (req.method !== "POST") { json(res, { error: "POST only" }, 405); return; }
+      if (!isAuthorized(req)) { json(res, { error: "Unauthorized" }, 401); return; }
+      readBody(req).then((bodyStr) => {
+        try {
+          const body = parseJsonBody<{ title: string; url: string; source: string; reward: number }>(bodyStr);
+          if (!body.title || !body.url) {
+            json(res, { error: "Missing title or url" }, 400);
+            return;
+          }
+          const id = `manual_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+          dbRecordDiscovery({
+            id,
+            source: body.source || "Manual",
+            title: body.title,
+            url: body.url,
+          });
+          cli.addTaskToInbox({
+            id,
+            agentId: "agent_claw",
+            clientAddress: body.source || "Manual",
+            task: `[${body.source || "Manual"}] ${body.title} — URL: ${body.url}. Est. Reward: $${body.reward || 50}`,
+            status: "requested",
+          });
+          console.log(`[Manual Bounty] Added: "${body.title}" ($${body.reward || 50}) — ${body.url}`);
+          json(res, { ok: true, id });
+        } catch {
+          json(res, { error: "Invalid body" }, 400);
+        }
+      });
+      break;
     case "/api/revenue/confirm":
       if (req.method !== "POST") { json(res, { error: "POST only" }, 405); return; }
       readBody(req).then((bodyStr) => {
