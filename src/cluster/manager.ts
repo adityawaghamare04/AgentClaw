@@ -21,9 +21,23 @@ export class ClusterManager {
       ? `primary_${process.pid}`
       : `worker_${cluster.worker?.id || process.pid}`;
     
-    // Default worker pool to min(4, CPU cores) or custom count
-    const numCores = os.cpus().length;
-    this.workerCount = customWorkerCount || Math.max(1, Math.min(4, numCores));
+    // Cloud / Container Environment Optimization:
+    // Spawning node cluster workers inside a 512MB RAM cloud container (Railway/Docker/Render)
+    // multiplies Node process baseline memory and causes instant Out of Memory (OOM) crashes.
+    // Default to Single-Process Mode (workerCount = 0) unless ENABLE_CLUSTER=true or WORKER_COUNT > 0 is set.
+    const envWorkerCount = process.env.WORKER_COUNT ? parseInt(process.env.WORKER_COUNT, 10) : undefined;
+    const enableCluster = process.env.ENABLE_CLUSTER === "true" || process.env.ENABLE_CLUSTER === "1";
+
+    if (customWorkerCount !== undefined) {
+      this.workerCount = customWorkerCount;
+    } else if (envWorkerCount !== undefined) {
+      this.workerCount = Math.max(0, envWorkerCount);
+    } else if (enableCluster) {
+      const numCores = os.cpus().length;
+      this.workerCount = Math.max(1, Math.min(4, numCores));
+    } else {
+      this.workerCount = 0; // Default: Single process mode for container memory safety
+    }
   }
 
   /**
@@ -33,11 +47,15 @@ export class ClusterManager {
    */
   public startCluster(onWorkerStart?: () => void): ClusterStatus {
     if (this.isPrimary) {
-      console.log(`⚡ [Cluster Engine] Primary Node active (PID: ${process.pid}) — Spawning ${this.workerCount} Cluster Workers...`);
+      if (this.workerCount > 0) {
+        console.log(`⚡ [Cluster Engine] Primary Node active (PID: ${process.pid}) — Spawning ${this.workerCount} Cluster Workers...`);
+      } else {
+        console.log(`⚡ [Cluster Engine] Single-Process Mode active (PID: ${process.pid}) — Container Memory Optimized.`);
+      }
       
       this.registerHeartbeat("primary");
 
-      // Spawn workers
+      // Spawn workers if enabled
       for (let i = 0; i < this.workerCount; i++) {
         this.spawnWorker();
       }

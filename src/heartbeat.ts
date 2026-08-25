@@ -107,9 +107,10 @@ export function createHeartbeat(
 
   function hydrateStateFromDb() {
     try {
-      const storedTasks = dbGetAllTasks(1000);
+      const storedTasks = dbGetAllTasks(500);
       for (const st of storedTasks) {
-        if (!state.activeTasks.has(st.id)) {
+        const isTerminal = TERMINAL_STATUSES.has(st.status) || st.status === "completed" || st.status === "failed" || st.status === "skipped";
+        if (!isTerminal && !state.activeTasks.has(st.id)) {
           state.activeTasks.set(st.id, {
             id: st.id,
             agentId: config.agentId || "agent_claw",
@@ -124,7 +125,7 @@ export function createHeartbeat(
     } catch {}
 
     try {
-      const storedEvents = dbGetAllEvents(300);
+      const storedEvents = dbGetAllEvents(100);
       if (storedEvents && storedEvents.length > 0) {
         state.events = storedEvents as ActivityEvent[];
       }
@@ -137,8 +138,8 @@ export function createHeartbeat(
   function emit(event: Omit<ActivityEvent, "timestamp">) {
     const full: ActivityEvent = { ...event, timestamp: Date.now() };
     state.events.push(full);
-    if (state.events.length > 300) {
-      state.events = state.events.slice(-300);
+    if (state.events.length > 100) {
+      state.events = state.events.slice(-100);
     }
     dbRecordEvent(full);
     for (const fn of listeners) fn(full);
@@ -501,14 +502,22 @@ export function createHeartbeat(
   function scheduleNext() {
     if (!state.running) return;
 
-    // Expire stale tasks
+    // Prune stale & terminal tasks from activeTasks Map
     const now = Date.now();
     for (const [id, task] of state.activeTasks) {
+      const statusStr = task.status as string;
+      const isTerminal = TERMINAL_STATUSES.has(task.status) || statusStr === "completed" || statusStr === "failed" || statusStr === "skipped";
       const taskTime = task.quotedAt ?? task.acceptedAt ?? task.submittedAt ?? state.startedAt;
-      if (!processing.has(id) && now - taskTime > TASK_EXPIRY_MS) {
+      if (isTerminal || (!processing.has(id) && now - taskTime > TASK_EXPIRY_MS)) {
         state.activeTasks.delete(id);
         processedVersions.delete(id);
+        taskRetryAfter.delete(id);
+        taskRetryCounts.delete(id);
       }
+    }
+
+    if (global.gc) {
+      try { global.gc(); } catch {}
     }
 
     // Study ONLY if completely idle and not rate-limited

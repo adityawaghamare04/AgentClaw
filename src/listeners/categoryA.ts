@@ -125,33 +125,38 @@ async function pollAllCategoryAPlatforms() {
   try {
     const items: BountyItem[] = [];
 
-    // All high-yield search queries across bounties, grants, missions, intents, and solvability streams
-    const results = await Promise.allSettled([
-      pollGitHubQuery("label:bounty", "github_bounty", "GitHub Bounty Issues"),
-      pollGitHubQuery("body:\"/bounty\"", "github_algora", "Algora Bounty Issues"),
-      pollGitHubQuery("label:real", "github_real", "GitHub Real Label Stream"),
-      pollGitHubQuery("label:redeem", "github_redeem", "GitHub Redeem Stream"),
-      pollGitHubQuery("label:\"Delegate Mission Request\"", "github_del_mission", "Delegate Mission Requests"),
-      pollGitHubQuery("label:\"Foundation Mission Request\"", "github_found_mission", "Foundation Mission Requests"),
-      pollGitHubQuery("label:\"Contribution Opportunity\"", "github_contrib_opp", "Contribution Opportunities"),
-      pollGitHubQuery("label:\"Ecosystem Project Idea\"", "github_eco_idea", "Ecosystem Project Ideas"),
-      pollGitHubQuery("label:\"Draft Project Idea\"", "github_draft_idea", "Draft Project Ideas"),
-      pollGitHubQuery("label:\"Intent #1\"", "github_intent_1", "Grant Intent #1"),
-      pollGitHubQuery("label:\"Intent #3\"", "github_intent_3", "Grant Intent #3"),
-      pollGitHubQuery("label:\"Intent: Novel Applications\"", "github_intent_apps", "Intent: Novel Applications"),
-      pollGitHubQuery("label:\"Intent: Technical Decentralization\"", "github_intent_decent", "Intent: Technical Decentralization"),
-      pollGitHubQuery("label:\"Estimated Effort: Small\"", "github_effort_small", "Effort: Small"),
-      pollGitHubQuery("label:\"Estimated Effort: Medium\"", "github_effort_med", "Effort: Medium"),
-      pollGitHubQuery("label:\"good first issue\"", "github_goodfirst", "GitHub Good-First Stream"),
-      pollGitHubQuery("label:\"help wanted\"", "github_helpwanted", "GitHub Help-Wanted Stream"),
-      pollGitHubQuery("label:bug", "github_bug", "GitHub Bug Fix Stream"),
-      pollGitHubQuery("label:enhancement", "github_enhancement", "GitHub Enhancement Stream"),
-      pollGitHubQuery("bounty", "github_open_bounties", "Open Bounty & Crypto Grants"),
-    ]);
+    // All high-yield search queries batched in chunks of 4 to prevent network/RAM spikes
+    const queries = [
+      () => pollGitHubQuery("label:bounty", "github_bounty", "GitHub Bounty Issues"),
+      () => pollGitHubQuery("body:\"/bounty\"", "github_algora", "Algora Bounty Issues"),
+      () => pollGitHubQuery("label:real", "github_real", "GitHub Real Label Stream"),
+      () => pollGitHubQuery("label:redeem", "github_redeem", "GitHub Redeem Stream"),
+      () => pollGitHubQuery("label:\"Delegate Mission Request\"", "github_del_mission", "Delegate Mission Requests"),
+      () => pollGitHubQuery("label:\"Foundation Mission Request\"", "github_found_mission", "Foundation Mission Requests"),
+      () => pollGitHubQuery("label:\"Contribution Opportunity\"", "github_contrib_opp", "Contribution Opportunities"),
+      () => pollGitHubQuery("label:\"Ecosystem Project Idea\"", "github_eco_idea", "Ecosystem Project Ideas"),
+      () => pollGitHubQuery("label:\"Draft Project Idea\"", "github_draft_idea", "Draft Project Ideas"),
+      () => pollGitHubQuery("label:\"Intent #1\"", "github_intent_1", "Grant Intent #1"),
+      () => pollGitHubQuery("label:\"Intent #3\"", "github_intent_3", "Grant Intent #3"),
+      () => pollGitHubQuery("label:\"Intent: Novel Applications\"", "github_intent_apps", "Intent: Novel Applications"),
+      () => pollGitHubQuery("label:\"Intent: Technical Decentralization\"", "github_intent_decent", "Intent: Technical Decentralization"),
+      () => pollGitHubQuery("label:\"Estimated Effort: Small\"", "github_effort_small", "Effort: Small"),
+      () => pollGitHubQuery("label:\"Estimated Effort: Medium\"", "github_effort_med", "Effort: Medium"),
+      () => pollGitHubQuery("label:\"good first issue\"", "github_goodfirst", "GitHub Good-First Stream"),
+      () => pollGitHubQuery("label:\"help wanted\"", "github_helpwanted", "GitHub Help-Wanted Stream"),
+      () => pollGitHubQuery("label:bug", "github_bug", "GitHub Bug Fix Stream"),
+      () => pollGitHubQuery("label:enhancement", "github_enhancement", "GitHub Enhancement Stream"),
+      () => pollGitHubQuery("bounty", "github_open_bounties", "Open Bounty & Crypto Grants"),
+    ];
 
-    for (const res of results) {
-      if (res.status === "fulfilled") {
-        items.push(...res.value);
+    const chunkSize = 4;
+    for (let i = 0; i < queries.length; i += chunkSize) {
+      const chunk = queries.slice(i, i + chunkSize);
+      const batchResults = await Promise.allSettled(chunk.map((fn) => fn()));
+      for (const res of batchResults) {
+        if (res.status === "fulfilled") {
+          items.push(...res.value);
+        }
       }
     }
 
@@ -168,7 +173,7 @@ async function pollAllCategoryAPlatforms() {
 
       newCount++;
 
-      if (seenBounties.size > 2000) {
+      if (seenBounties.size > 1000) {
         const firstKey = seenBounties.values().next().value;
         if (firstKey) seenBounties.delete(firstKey);
       }
@@ -209,7 +214,7 @@ async function pollGitHubQuery(labelQuery: string, platformId: string, sourceNam
   const items: BountyItem[] = [];
   try {
     const query = encodeURIComponent(`is:open is:issue ${labelQuery} sort:created-desc`);
-    const url = `https://api.github.com/search/issues?q=${query}&per_page=10`;
+    const url = `https://api.github.com/search/issues?q=${query}&per_page=5`;
     const headers: Record<string, string> = { "User-Agent": "AgentClaw-Engine", "Accept": "application/vnd.github.v3+json" };
     if (process.env.GITHUB_TOKEN) {
       const tok = process.env.GITHUB_TOKEN;

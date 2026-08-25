@@ -18,6 +18,7 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV PORT=3777
+ENV NODE_OPTIONS="--max-old-space-size=384"
 
 COPY package*.json ./
 RUN npm ci --only=production
