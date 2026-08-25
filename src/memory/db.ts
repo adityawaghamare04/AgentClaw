@@ -149,8 +149,8 @@ async function initTursoSchema() {
     }
     console.log("[Turso DB] ✅ Turso database schema verified & all 8 tables created.");
 
-    // Load active & recent tasks from Turso into cache (capped at 100 to preserve memory)
-    const taskRes = await libsql.execute("SELECT * FROM tasks WHERE status IN ('discovered', 'queued', 'executing', 'submitted', 'requested', 'accepted', 'revision') ORDER BY discoveredAt DESC LIMIT 100");
+    // Load recent tasks from Turso into cache (capped at 300)
+    const taskRes = await libsql.execute("SELECT * FROM tasks ORDER BY discoveredAt DESC LIMIT 300");
     for (const row of taskRes.rows) {
       cache.tasks.set(row.id as string, {
         id: row.id as string,
@@ -422,8 +422,8 @@ sqlite.serialize(() => {
     }
   }
 
-  // Load active & recent tasks into memory cache (capped at 100 for memory safety)
-  sqlite.all("SELECT * FROM tasks WHERE status IN ('discovered', 'queued', 'executing', 'submitted', 'requested', 'accepted', 'revision') ORDER BY discoveredAt DESC LIMIT 100", (err, rows: any[]) => {
+  // Load recent tasks into memory cache (capped at 300)
+  sqlite.all("SELECT * FROM tasks ORDER BY discoveredAt DESC LIMIT 300", (err, rows: any[]) => {
     if (!err && rows) {
       for (const row of rows) {
         cache.tasks.set(row.id, {

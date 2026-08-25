@@ -443,14 +443,13 @@ function handleApi(
       });
       break;
     case "/api/revenue":
-      autoSettlePendingEarnings().catch(() => {}).finally(() => {
-        json(res, {
-          confirmedRevenue: dbGetTotalEarnings(),
-          pendingRevenue: dbGetPendingEarnings(),
-          destinationWallet: process.env.TREASURY_ADDRESS || "0xfdCE8864Ab96584102354Eb2d270187E0E900492",
-          earnings: dbGetEarnings(),
-        });
+      json(res, {
+        confirmedRevenue: dbGetTotalEarnings(),
+        pendingRevenue: dbGetPendingEarnings(),
+        destinationWallet: process.env.TREASURY_ADDRESS || "0xfdCE8864Ab96584102354Eb2d270187E0E900492",
+        earnings: dbGetEarnings(),
       });
+      void autoSettlePendingEarnings().catch(() => {});
       break;
 
     case "/api/rpc-mesh":
