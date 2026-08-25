@@ -12,7 +12,7 @@
     "build": "tsup",
     "build:ui": "vite build",
     "build:all": "tsup && vite build",
-    "start": "node --max-old-space-size=384 dist/index.js",
+    "start": "node --max-old-space-size=256 dist/index.js",
     "dev": "tsx src/index.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"

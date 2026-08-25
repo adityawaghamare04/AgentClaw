@@ -149,8 +149,8 @@ async function initTursoSchema() {
     }
     console.log("[Turso DB] ✅ Turso database schema verified & all 8 tables created.");
 
-    // Load existing tasks from Turso into cache
-    const taskRes = await libsql.execute("SELECT * FROM tasks");
+    // Load active & recent tasks from Turso into cache (capped at 100 to preserve memory)
+    const taskRes = await libsql.execute("SELECT * FROM tasks WHERE status IN ('discovered', 'queued', 'executing', 'submitted', 'requested', 'accepted', 'revision') ORDER BY discoveredAt DESC LIMIT 100");
     for (const row of taskRes.rows) {
       cache.tasks.set(row.id as string, {
         id: row.id as string,
@@ -169,8 +169,8 @@ async function initTursoSchema() {
       });
     }
 
-    // Load existing earnings from Turso into cache
-    const earnRes = await libsql.execute("SELECT * FROM earnings");
+    // Load recent earnings from Turso into cache (capped at 100)
+    const earnRes = await libsql.execute("SELECT * FROM earnings ORDER BY timestamp DESC LIMIT 100");
     for (const row of earnRes.rows) {
       cache.earnings.set(row.id as string, {
         id: row.id as string,
@@ -422,8 +422,8 @@ sqlite.serialize(() => {
     }
   }
 
-  // Load database rows into cache
-  sqlite.all("SELECT * FROM tasks", (err, rows: any[]) => {
+  // Load active & recent tasks into memory cache (capped at 100 for memory safety)
+  sqlite.all("SELECT * FROM tasks WHERE status IN ('discovered', 'queued', 'executing', 'submitted', 'requested', 'accepted', 'revision') ORDER BY discoveredAt DESC LIMIT 100", (err, rows: any[]) => {
     if (!err && rows) {
       for (const row of rows) {
         cache.tasks.set(row.id, {
@@ -445,7 +445,7 @@ sqlite.serialize(() => {
     }
   });
 
-  sqlite.all("SELECT * FROM earnings", (err, rows: any[]) => {
+  sqlite.all("SELECT * FROM earnings ORDER BY timestamp DESC LIMIT 100", (err, rows: any[]) => {
     if (!err && rows) {
       for (const row of rows) {
         cache.earnings.set(row.id, {

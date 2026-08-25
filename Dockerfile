@@ -3,6 +3,8 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+ENV NODE_OPTIONS="--max-old-space-size=256"
+
 # Copy package manifests and install dependencies
 COPY package*.json ./
 RUN npm ci
@@ -18,7 +20,7 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV PORT=3777
-ENV NODE_OPTIONS="--max-old-space-size=384"
+ENV NODE_OPTIONS="--max-old-space-size=256"
 
 COPY package*.json ./
 RUN npm ci --only=production
@@ -30,4 +32,4 @@ COPY --from=builder /app/dist ./dist
 EXPOSE 3777
 
 # Start CashClaw agent
-CMD ["node", "dist/index.js"]
+CMD ["node", "--max-old-space-size=256", "dist/index.js"]
