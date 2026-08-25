@@ -7,11 +7,9 @@ import { dbRecordDiscovery } from "../memory/db.js";
  * Category A: Autonomous GitHub Bounty Scanner
  * 
  * Focused ONLY on tasks the bot can actually solve and submit:
- * 1. GitHub Issues with "bounty" label — actual code bounties
- * 2. GitHub Issues with "help wanted" label — open contribution opportunities
- * 3. GitHub Issues with "good first issue" label — easy wins
- * 
- * Non-actionable sources (HN, Remotive, Bitcointalk) are tracked for stats only.
+ * 1. BountyHub.dev Bounties & GitHub Issue Streams
+ * 2. Algora / Bountycaster Streams
+ * 3. GitHub Issues with "bounty", "help wanted", "good first issue", "real", "redeem" labels
  */
 
 export interface PlatformStat {
@@ -31,7 +29,7 @@ interface BountyItem {
   title: string;
   url: string;
   budgetUsd?: number;
-  snippet: string;
+  snippet?: string;
 }
 
 const seenBounties = new Set<string>();
@@ -40,6 +38,8 @@ const seenBounties = new Set<string>();
 const MAX_NEW_TASKS_PER_SCAN = 10;
 
 const platformStatsMap: Record<string, PlatformStat> = {
+  bountyhub: { id: "bountyhub", name: "BountyHub.dev Platform", category: "Web3 Bounties", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
+  github_bountyhub: { id: "github_bountyhub", name: "BountyHub GitHub Stream", category: "Web3 Bounties", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
   github_bounty: { id: "github_bounty", name: "GitHub Bounty Issues", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
   github_algora: { id: "github_algora", name: "Algora / Bountycaster Streams", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
   github_real: { id: "github_real", name: "GitHub Real Label Stream", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
@@ -53,8 +53,6 @@ const platformStatsMap: Record<string, PlatformStat> = {
   github_intent_3: { id: "github_intent_3", name: "Grant Intent #3 Stream", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
   github_intent_apps: { id: "github_intent_apps", name: "Intent: Novel Applications", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
   github_intent_decent: { id: "github_intent_decent", name: "Intent: Technical Decentralization", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
-  github_effort_small: { id: "github_effort_small", name: "Effort: Small Stream", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
-  github_effort_med: { id: "github_effort_med", name: "Effort: Medium Stream", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
   github_goodfirst: { id: "github_goodfirst", name: "Good First Issue Stream", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
   github_helpwanted: { id: "github_helpwanted", name: "Help Wanted Stream", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
   github_bug: { id: "github_bug", name: "Bug Fix Stream", category: "GitHub Issues", scanCount: 0, lastScanned: "Never", bountiesFound: 0, status: "Active" },
@@ -68,7 +66,7 @@ export function getPlatformStats(): PlatformStat[] {
 }
 
 export function startCategoryAListeners() {
-  console.log("[Category A] 🌐 Universal GitHub Bounty Scanner active — scanning all open bounty, crypto & developer issue streams.");
+  console.log("[Category A] 🌐 Universal GitHub Bounty & BountyHub Scanner active — scanning all open bounty, BountyHub, crypto & developer issue streams.");
 
   // Run initial poll after 5 seconds, then every 10 minutes
   setTimeout(pollAllCategoryAPlatforms, 5_000);
@@ -91,7 +89,7 @@ function updateStat(platformId: string, countNew: number) {
 function extractBudgetUsd(text: string): number {
   if (!text) return 50;
 
-  // 1. Algora command syntax: /bounty $100 or /bounty 100
+  // 1. Algora / BountyHub command syntax: /bounty $100 or /bounty 100
   const algoraMatch = text.match(/\/bounty\s+\$?(\d+)/i);
   if (algoraMatch && algoraMatch[1]) {
     const val = parseInt(algoraMatch[1], 10);
@@ -118,7 +116,6 @@ function extractBudgetUsd(text: string): number {
     }
   }
 
-  // Default fallback reward budget for any open bounty issue
   return 50;
 }
 
@@ -128,6 +125,9 @@ async function pollAllCategoryAPlatforms() {
 
     // All high-yield search queries batched in chunks of 4 to prevent network/RAM spikes
     const queries = [
+      () => pollGitHubQuery("body:\"bountyhub.dev\"", "github_bountyhub", "BountyHub.dev Bounties"),
+      () => pollGitHubQuery("label:bountyhub", "github_bountyhub", "BountyHub Label Stream"),
+      () => pollGitHubQuery("bountyhub", "bountyhub", "BountyHub Platform Issues"),
       () => pollGitHubQuery("label:bounty", "github_bounty", "GitHub Bounty Issues"),
       () => pollGitHubQuery("body:\"/bounty\"", "github_algora", "Algora Bounty Issues"),
       () => pollGitHubQuery("label:real", "github_real", "GitHub Real Label Stream"),
@@ -141,8 +141,6 @@ async function pollAllCategoryAPlatforms() {
       () => pollGitHubQuery("label:\"Intent #3\"", "github_intent_3", "Grant Intent #3"),
       () => pollGitHubQuery("label:\"Intent: Novel Applications\"", "github_intent_apps", "Intent: Novel Applications"),
       () => pollGitHubQuery("label:\"Intent: Technical Decentralization\"", "github_intent_decent", "Intent: Technical Decentralization"),
-      () => pollGitHubQuery("label:\"Estimated Effort: Small\"", "github_effort_small", "Effort: Small"),
-      () => pollGitHubQuery("label:\"Estimated Effort: Medium\"", "github_effort_med", "Effort: Medium"),
       () => pollGitHubQuery("label:\"good first issue\"", "github_goodfirst", "GitHub Good-First Stream"),
       () => pollGitHubQuery("label:\"help wanted\"", "github_helpwanted", "GitHub Help-Wanted Stream"),
       () => pollGitHubQuery("label:bug", "github_bug", "GitHub Bug Fix Stream"),
@@ -199,54 +197,46 @@ async function pollAllCategoryAPlatforms() {
         clientAddress: item.source || "CategoryA_Feed",
         task: `[${item.source}] ${item.title} — URL: ${item.url}. Details: ${item.snippet || item.title}`,
         status: "requested",
-        budgetWei: String(item.budgetUsd || 50),
-        category: item.platformId || "bounty",
       });
     }
-
-    console.log(`[Category A] 🔎 Scanned GitHub streams. Ingested ${newCount} bounties (cap: ${MAX_NEW_TASKS_PER_SCAN}).`);
   } catch (err: any) {
-    console.warn("[Category A] Polling warning:", err.message);
+    console.error("[Category A] ❌ Error during scan cycle:", err?.message || err);
   }
 }
 
-// GitHub Issue Search Streams
-async function pollGitHubQuery(labelQuery: string, platformId: string, sourceName: string): Promise<BountyItem[]> {
-  const items: BountyItem[] = [];
+async function pollGitHubQuery(query: string, platformId: string, sourceName: string): Promise<BountyItem[]> {
   try {
-    const query = encodeURIComponent(`is:open is:issue ${labelQuery} sort:created-desc`);
-    const url = `https://api.github.com/search/issues?q=${query}&per_page=5`;
-    const headers: Record<string, string> = { "User-Agent": "AgentClaw-Engine", "Accept": "application/vnd.github.v3+json" };
+    const url = `https://api.github.com/search/issues?q=is:issue+is:open+${encodeURIComponent(query)}&sort=created&order=desc&per_page=5`;
+    const headers: Record<string, string> = {
+      "User-Agent": "AgentClaw-BountyScanner/1.0",
+      "Accept": "application/vnd.github.v3+json",
+    };
+
     if (process.env.GITHUB_TOKEN) {
-      const tok = process.env.GITHUB_TOKEN;
-      headers["Authorization"] = tok.startsWith("github_pat_") || tok.startsWith("ghp_") ? `Bearer ${tok}` : `token ${tok}`;
+      headers["Authorization"] = `token ${process.env.GITHUB_TOKEN}`;
     }
 
     const res = await fetch(url, { headers });
-    if (res.ok) {
-      const data = await res.json() as any;
-      if (data.items) {
-        for (const issue of data.items) {
-          const bodyText = issue.body || "";
-          const snippetText = bodyText ? bodyText.slice(0, 300) : issue.title;
-          const detectedBudget = extractBudgetUsd(`${issue.title} ${bodyText}`);
-
-          items.push({
-            id: `gh_${issue.id}`,
-            source: sourceName,
-            platformId,
-            title: issue.title,
-            url: issue.html_url,
-            budgetUsd: detectedBudget,
-            snippet: snippetText,
-          });
-        }
-      }
+    if (!res.ok) {
+      updateStat(platformId, 0);
+      return [];
     }
-  } catch {}
-  updateStat(platformId, items.length);
-  return items;
+
+    const data = (await res.json()) as { items?: any[] };
+    const rawItems = data.items || [];
+    updateStat(platformId, rawItems.length);
+
+    return rawItems.map((issue: any) => ({
+      id: `gh_${issue.id}`,
+      source: sourceName,
+      platformId,
+      title: issue.title,
+      url: issue.html_url,
+      budgetUsd: extractBudgetUsd(`${issue.title} ${issue.body || ""}`),
+      snippet: (issue.body || "").slice(0, 300),
+    }));
+  } catch (err) {
+    updateStat(platformId, 0);
+    return [];
+  }
 }
-
-
-
