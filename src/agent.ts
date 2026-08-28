@@ -112,6 +112,9 @@ export async function startAgent(): Promise<http.Server> {
       } catch {}
     });
 
+    ws.on("error", () => {
+      wsClients.delete(ws);
+    });
     ws.on("close", () => {
       wsClients.delete(ws);
     });
@@ -299,6 +302,13 @@ function handleApi(
       break;
 
     case "/api/tasks": {
+      const now = Date.now();
+      const cached = (ctx as any)._tasksCache;
+      if (cached && now - cached.timestamp < 1000) {
+        json(res, cached.payload);
+        break;
+      }
+
       const activeTasksMap = ctx.heartbeat.state.activeTasks;
       const dbTasks = dbGetAllTasks(1000);
       const dbEarnings = dbGetEarnings();
@@ -348,10 +358,12 @@ function handleApi(
         ? ctx.heartbeat.state.events
         : dbGetAllEvents(100);
 
-      json(res, {
+      const payload = {
         tasks: Array.from(mergedMap.values()),
         events: currentEvents.slice(-50),
-      });
+      };
+      (ctx as any)._tasksCache = { timestamp: now, payload };
+      json(res, payload);
       break;
     }
 
@@ -513,10 +525,10 @@ function handleApi(
             id,
             agentId: "agent_claw",
             clientAddress: body.source || "Manual",
-            task: `[${body.source || "Manual"}] ${body.title} — URL: ${body.url}. Est. Reward: $${body.reward || 50}`,
+            task: `[${body.source || "Manual"}] ${body.title} ï¿½ URL: ${body.url}. Est. Reward: $${body.reward || 50}`,
             status: "requested",
           });
-          console.log(`[Manual Bounty] Added: "${body.title}" ($${body.reward || 50}) — ${body.url}`);
+          console.log(`[Manual Bounty] Added: "${body.title}" ($${body.reward || 50}) ï¿½ ${body.url}`);
           json(res, { ok: true, id });
         } catch {
           json(res, { error: "Invalid body" }, 400);

@@ -259,6 +259,20 @@ export interface KeyHealthRecord {
 }
 
 // In-Memory Synchronous Cache for zero-latency UI/Agent reads, persisted asynchronously to SQLite
+const MAX_CACHE_TASKS = 500;
+const MAX_CACHE_EARNINGS = 200;
+
+function capMapSize<K, V>(map: Map<K, V>, maxSize: number): void {
+  while (map.size > maxSize) {
+    const firstKey = map.keys().next().value;
+    if (firstKey !== undefined) {
+      map.delete(firstKey);
+    } else {
+      break;
+    }
+  }
+}
+
 const cache = {
   tasks: new Map<string, TaskRecord>(),
   earnings: new Map<string, EarningRecord>(),
@@ -495,6 +509,7 @@ export function dbRecordDiscovery(task: Omit<TaskRecord, "status" | "discoveredA
   };
 
   cache.tasks.set(record.id, record);
+  capMapSize(cache.tasks, MAX_CACHE_TASKS);
 
   runQuery(
     `INSERT INTO tasks (id, source, title, url, status, discoveredAt, executedAt, submittedAt, completedAt, earnedUsd, solutionSnippet, errorMsg, retries)
@@ -589,6 +604,7 @@ export function dbRecordEarning(earning: Partial<EarningRecord> & { amountUsd: n
   };
 
   cache.earnings.set(record.id, record);
+  capMapSize(cache.earnings, MAX_CACHE_EARNINGS);
 
   runQuery(
     `INSERT INTO earnings (id, taskId, source, amountUsd, title, timestamp, payoutStatus, destinationWallet, verifiedAt, txHash)

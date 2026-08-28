@@ -291,9 +291,21 @@ export function createHeartbeat(
       emit({ type: "error", taskId: task.id, message: `❌ Error: ${msg.slice(0, 200)}` });
       appendLog(`Error for ${task.id}: ${msg}`);
 
-      const is429 = msg.includes("429") || msg.includes("RESOURCE_EXHAUSTED") || msg.includes("quota") || msg.includes("rate");
+      const isCircuitBreaker = msg.includes("Circuit Breaker");
+      const is429 = isCircuitBreaker || msg.includes("429") || msg.includes("RESOURCE_EXHAUSTED") || msg.includes("quota") || msg.includes("rate");
       if (is429) {
         consecutive429s++;
+
+        // When ALL providers are exhausted, pause the worker queue immediately.
+        // This prevents already-queued tasks from waking up just to fail.
+        if (keyManager.isAllProvidersExhausted() && !taskQueue.isPaused) {
+          taskQueue.pause();
+          emit({
+            type: "error",
+            message: `⏸️ All provider keys exhausted — worker queue paused until quota resets.`,
+          });
+        }
+
         const retries = (taskRetryCounts.get(task.id) || 0) + 1;
         taskRetryCounts.set(task.id, retries);
 
@@ -302,7 +314,7 @@ export function createHeartbeat(
         rateLimitedUntil = Date.now() + RATE_LIMIT_COOLDOWN_MS;
         processedVersions.delete(task.id);
 
-        dbUpdateTaskStatus(task.id, "queued", { errorMsg: `429 - retry #${retries}`, retries });
+        dbUpdateTaskStatus(task.id, "queued", { errorMsg: isCircuitBreaker ? `circuit-breaker - retry #${retries}` : `429 - retry #${retries}`, retries });
 
         emit({
           type: "error",
@@ -387,12 +399,17 @@ export function createHeartbeat(
       return;
     }
 
-    // Guard: Skip execution if all LLM providers are quota-exhausted across all keys
-    if (keyManager.isAllProvidersExhausted() && consecutive429s >= 3) {
+    // Guard: Skip execution if all LLM providers are quota-exhausted across all keys.
+    // No consecutive429s threshold needed — isAllProvidersExhausted() is authoritative.
+    // The circuit breaker (Fix 1) prevents fetch() calls; this prevents task dispatch entirely.
+    if (keyManager.isAllProvidersExhausted()) {
+      if (!taskQueue.isPaused) {
+        taskQueue.pause();
+      }
       emit({
         type: "error",
         taskId: task.id,
-        message: `⏸️ All API keys across all providers exhausted for today. Task deferred until quota resets.`,
+        message: `⏸️ All API keys across all providers exhausted. Task deferred until quota resets.`,
       });
       state.activeTasks.set(task.id, task);
       return;
@@ -519,6 +536,16 @@ export function createHeartbeat(
 
     if (global.gc) {
       try { global.gc(); } catch {}
+    }
+
+    // Resume worker queue if providers have recovered (e.g., after UTC midnight quota reset)
+    if (taskQueue.isPaused && !keyManager.isAllProvidersExhausted()) {
+      taskQueue.start();
+      consecutive429s = 0;
+      emit({
+        type: "poll",
+        message: `▶️ Provider keys recovered — worker queue resumed.`,
+      });
     }
 
     // Study ONLY if completely idle and not rate-limited

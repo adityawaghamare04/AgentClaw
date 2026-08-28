@@ -32,7 +32,12 @@ export class SecureVaultManager {
    * Initializes or unlocks the encrypted vault using the master passphrase or fallback process key.
    */
   public initializeVault(passphrase?: string): boolean {
-    const masterPass = passphrase || process.env.VAULT_PASSPHRASE || process.env.ADMIN_PASSWORD || "AgentClaw_Default_Master_Vault_Key_2026";
+    let masterPass = passphrase || process.env.VAULT_PASSPHRASE || process.env.ADMIN_PASSWORD;
+    if (!masterPass) {
+      console.warn("⚠️ [Security Vault] WARNING: Neither VAULT_PASSPHRASE nor ADMIN_PASSWORD found in environment variables.");
+      console.warn("🔒 [Security Vault] Option A Active: Generating ephemeral cryptographically random 256-bit runtime key.");
+      masterPass = crypto.randomBytes(32).toString("hex");
+    }
     
     // Check if vault already exists in SQLite DB
     let record = dbGetVaultRecord(this.vaultId);

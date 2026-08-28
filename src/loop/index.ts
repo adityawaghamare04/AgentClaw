@@ -80,10 +80,14 @@ export async function runAgentLoop(
         success: result.success,
       });
 
+      const safeData = result.data.length > 10000
+        ? result.data.slice(0, 10000) + "\n...[tool output truncated for memory safety]"
+        : result.data;
+
       toolResults.push({
         type: "tool_result",
         tool_use_id: block.id,
-        content: result.data,
+        content: safeData,
         is_error: !result.success,
       });
     }

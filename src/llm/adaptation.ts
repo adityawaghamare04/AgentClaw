@@ -377,13 +377,27 @@ class MultiProviderKeyManager {
 
   /**
    * Auto-resets exhausted keys after 6 hours or at midnight UTC.
+   * Gemini's free-tier daily quota (RPD) resets at UTC midnight, so we check
+   * whether we've crossed a UTC day boundary since the key was marked exhausted.
    */
   private resetExpiredKeys(provider: ProviderName): void {
     const now = Date.now();
+    const nowDate = new Date(now);
     for (const state of this.pools[provider]) {
       if (state.exhaustedAt === null) continue;
       const hoursSinceExhaustion = (now - state.exhaustedAt) / (1000 * 60 * 60);
+      // Reset after 6 hours (fallback for non-daily quotas)
       if (hoursSinceExhaustion >= 6) {
+        state.exhaustedAt = null;
+        state.consecutiveErrors = 0;
+        state.rateLimitedUntil = 0;
+        continue;
+      }
+      // Reset if we've crossed a UTC midnight boundary (daily quota reset)
+      const exhaustedDate = new Date(state.exhaustedAt);
+      if (exhaustedDate.getUTCDate() !== nowDate.getUTCDate() ||
+          exhaustedDate.getUTCMonth() !== nowDate.getUTCMonth() ||
+          exhaustedDate.getUTCFullYear() !== nowDate.getUTCFullYear()) {
         state.exhaustedAt = null;
         state.consecutiveErrors = 0;
         state.rateLimitedUntil = 0;

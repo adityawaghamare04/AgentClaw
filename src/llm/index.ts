@@ -114,16 +114,21 @@ function toOpenAIMessages(messages: LLMMessage[]): unknown[] {
               extra_content?: Record<string, unknown>;
             } => b.type === "tool_use",
           )
-          .map((b) => ({
-            id: b.id,
-            type: "function",
-            function: {
-              name: b.name,
-              arguments: JSON.stringify(b.input),
-            },
-            // Preserve Gemini thought_signature for multi-turn tool calling
-            ...(b.extra_content ? { extra_content: b.extra_content } : {}),
-          }));
+          .map((b) => {
+            const extra = (b.extra_content || {}) as Record<string, unknown>;
+            const thoughtSig = extra.thought_signature || (extra.google as any)?.thought_signature;
+            return {
+              id: b.id,
+              type: "function",
+              function: {
+                name: b.name,
+                arguments: JSON.stringify(b.input),
+                ...(thoughtSig ? { thought_signature: thoughtSig } : {}),
+              },
+              // Preserve Gemini thought_signature for multi-turn tool calling
+              ...(b.extra_content ? { extra_content: b.extra_content } : {}),
+            };
+          });
 
         return {
           role: "assistant",
@@ -231,15 +236,12 @@ function createOpenAICompatibleProvider(
       // Use models that WORK with OpenAI-compatible endpoint + tool calling
       // gemini-2.5-flash and gemini-3.5-flash-lite are deprecated/removed by Google
       // gemini-3.6-flash is the recommended replacement model
-      const GEMINI_MODEL_CASCADE = [
-        "gemini-3.6-flash",
-        "gemini-3.5-flash",
-      ];
-      const GROQ_MODEL_CASCADE = [
-        "openai/gpt-oss-120b",
-        "openai/gpt-oss-20b",
-        "qwen/qwen3.6-27b",
-      ];
+      const GEMINI_MODEL_CASCADE = process.env.GEMINI_MODELS
+        ? process.env.GEMINI_MODELS.split(",").map((m) => m.trim())
+        : ["gemini-3.6-flash", "gemini-3.5-flash"];
+      const GROQ_MODEL_CASCADE = process.env.GROQ_MODELS
+        ? process.env.GROQ_MODELS.split(",").map((m) => m.trim())
+        : ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.6-27b"];
 
       // Build model candidate queue using Autonomous Model Adapter
       const modelQueue = isOpenRouter
@@ -254,6 +256,13 @@ function createOpenAICompatibleProvider(
       const limiter = isGemini ? geminiLimiter : isGroq ? groqLimiter : defaultLimiter;
 
       let lastError: Error | null = null;
+
+      // CIRCUIT BREAKER: Skip this provider entirely when all API keys are exhausted.
+      // Prevents the retry storm (100+ failed calls/min) that causes heap OOM.
+      // Keys auto-reset at UTC midnight or after 6 hours via resetExpiredKeys().
+      if (keyManager.isProviderExhausted(providerName)) {
+        throw new Error(`[Circuit Breaker] All ${providerName} keys exhausted — skipping to next provider`);
+      }
 
       for (let i = 0; i < modelQueue.length; i++) {
         const currentModel = modelQueue[i];
@@ -288,7 +297,9 @@ function createOpenAICompatibleProvider(
           }
 
           if (!res.ok) {
-            const errText = await res.text();
+            const fullErrText = await res.text();
+            // Cap error string length to prevent memory buffer bloat during retry sequences
+            const errText = fullErrText.length > 500 ? fullErrText.slice(0, 500) + "... [truncated]" : fullErrText;
             
             // Autonomously handle 401 Unauthorized / Invalid API Key
             if (res.status === 401) {
@@ -326,6 +337,9 @@ function createOpenAICompatibleProvider(
                   i--; // Retry with new key
                   continue;
                 }
+                // All keys for this provider are exhausted — break out immediately.
+                // Don't cascade to other models in the same provider (same keys = same failure).
+                throw new Error(`[Circuit Breaker] All ${providerName} keys exhausted — cascading to next provider`);
               } else {
                 keyManager.reportRateLimit(providerName, activeKey);
                 autonomousAdapter.reportRateLimit(currentModel);
@@ -393,7 +407,12 @@ function createOpenAICompatibleProvider(
                 name: tc.function.name,
                 input,
                 // Preserve Gemini thought_signature for multi-turn tool calling
-                extra_content: (tc as any).extra_content || undefined,
+                extra_content:
+                  (tc as any).extra_content ||
+                  (tc as any).function?.extra_content ||
+                  ((tc as any).thought_signature ? { thought_signature: (tc as any).thought_signature } : undefined) ||
+                  ((tc as any).function?.thought_signature ? { thought_signature: (tc as any).function.thought_signature } : undefined) ||
+                  undefined,
               });
             }
           }
