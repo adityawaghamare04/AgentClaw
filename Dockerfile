@@ -3,8 +3,8 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Heap ceiling set to 512MB (note: Fixes 1 & 2 in LLM router are load-bearing)
-ENV NODE_OPTIONS="--max-old-space-size=512"
+# Give build step (vite/tsup) 2GB memory headroom to prevent build-time OOM
+ENV NODE_OPTIONS="--max-old-space-size=2048"
 
 # Copy package manifests and install dependencies
 COPY package*.json ./
@@ -21,8 +21,8 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV PORT=3777
-# Heap ceiling set to 512MB (note: Fixes 1 & 2 in LLM router are load-bearing)
-ENV NODE_OPTIONS="--max-old-space-size=512"
+# Heap ceiling set to 384MB so V8 GC runs before Railway 512MB container limit is exceeded by RSS overhead
+ENV NODE_OPTIONS="--max-old-space-size=384"
 
 COPY package*.json ./
 RUN npm ci --only=production
@@ -34,4 +34,4 @@ COPY --from=builder /app/dist ./dist
 EXPOSE 3777
 
 # Start CashClaw agent
-CMD ["node", "--max-old-space-size=512", "dist/index.js"]
+CMD ["node", "--max-old-space-size=384", "dist/index.js"]
