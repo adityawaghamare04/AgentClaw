@@ -124,10 +124,10 @@ function toOpenAIMessages(messages: LLMMessage[]): unknown[] {
               function: {
                 name: b.name,
                 arguments: JSON.stringify(b.input),
-                ...(thoughtSig ? { thought_signature: thoughtSig } : {}),
               },
-              // Preserve Gemini thought_signature for multi-turn tool calling
-              ...(b.extra_content ? { extra_content: b.extra_content } : {}),
+              // Gemini 3.x requires thought_signature at the tool_call root level
+              // (sibling to id/type/function), NOT nested inside function{}
+              ...(thoughtSig ? { thought_signature: thoughtSig } : {}),
             };
           });
 
@@ -155,7 +155,8 @@ function toOpenAIMessages(messages: LLMMessage[]): unknown[] {
 interface OpenAIToolCall {
   id: string;
   type: "function";
-  function: { name: string; arguments: string };
+  function: { name: string; arguments: string; thought_signature?: string };
+  thought_signature?: string;
   extra_content?: Record<string, unknown>;
 }
 
@@ -404,18 +405,26 @@ function createOpenAICompatibleProvider(
               } catch {
                 input = { _raw: tc.function.arguments, _error: "malformed JSON from LLM" };
               }
+
+              // Extract Gemini thought_signature from all known response locations.
+              // Gemini 3.x models require this field to be preserved and re-injected
+              // in subsequent multi-turn tool-calling requests or they return HTTP 400.
+              const tcAny = tc as any;
+              const thoughtSig =
+                tcAny.thought_signature ||
+                tcAny.function?.thought_signature ||
+                tcAny.extra_content?.thought_signature ||
+                tcAny.extra_content?.google?.thought_signature ||
+                tcAny.function?.extra_content?.thought_signature ||
+                undefined;
+
               content.push({
                 type: "tool_use",
                 id: tc.id,
                 name: tc.function.name,
                 input,
-                // Preserve Gemini thought_signature for multi-turn tool calling
-                extra_content:
-                  (tc as any).extra_content ||
-                  (tc as any).function?.extra_content ||
-                  ((tc as any).thought_signature ? { thought_signature: (tc as any).thought_signature } : undefined) ||
-                  ((tc as any).function?.thought_signature ? { thought_signature: (tc as any).function.thought_signature } : undefined) ||
-                  undefined,
+                // Store extracted thought_signature in extra_content for re-injection
+                extra_content: thoughtSig ? { thought_signature: thoughtSig } : undefined,
               });
             }
           }
