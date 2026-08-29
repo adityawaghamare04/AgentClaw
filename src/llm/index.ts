@@ -51,6 +51,7 @@ function createAnthropicProvider(config: LLMConfig): LLMProvider {
           "anthropic-version": "2023-06-01",
         },
         body: JSON.stringify(body),
+        signal: AbortSignal.timeout(30000),
       });
 
       if (!res.ok) {
@@ -292,6 +293,7 @@ function createOpenAICompatibleProvider(
               method: "POST",
               headers,
               body: JSON.stringify(body),
+              signal: AbortSignal.timeout(30000),
             });
           } finally {
             limiter.release();
@@ -435,9 +437,8 @@ function createOpenAICompatibleProvider(
         } catch (err: any) {
           lastError = err;
           if (i < modelQueue.length - 1) {
-            console.warn(
-              `[LLM Router Error] ${currentModel} failed (${err.message}). Switching to fallback: ${modelQueue[i + 1]}`,
-            );
+            console.warn(`[LLM Router Error] ${currentModel} failed (${err.message}). Switching to fallback: ${modelQueue[i + 1]}`);
+            if (err?.message?.includes("fetch failed") || err?.name === "TimeoutError" || err?.name === "AbortError") { await new Promise((r) => setTimeout(r, 1000)); }
           }
         }
       }

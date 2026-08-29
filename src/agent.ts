@@ -152,6 +152,17 @@ function startKeepAlive() {
       .then(() => console.log(`[Keep-Alive] ⚡ 24/7 Keep-Alive ping sent to ${externalUrl}`))
       .catch((err) => console.warn(`[Keep-Alive] Ping note:`, err.message));
   }, pingIntervalMs);
+
+  // Memory Guard: Trigger proactive Garbage Collection if V8 heap rises under memory load
+  setInterval(() => {
+    const mem = process.memoryUsage();
+    const heapMb = Math.round(mem.heapUsed / 1024 / 1024);
+    const rssMb = Math.round(mem.rss / 1024 / 1024);
+    if (heapMb > 450 && typeof global.gc === "function") {
+      console.log(`[Memory Guard] ?? High memory usage detected (${heapMb}MB heap / ${rssMb}MB RSS). Invoking Garbage Collection...`);
+      global.gc();
+    }
+  }, 2 * 60 * 1000);
 }
 
 function createServer(ctx: ServerContext): http.Server {
