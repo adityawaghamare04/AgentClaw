@@ -80,16 +80,25 @@ export async function runAgentLoop(
         success: result.success,
       });
 
-      const safeData = result.data.length > 10000
-        ? result.data.slice(0, 10000) + "\n...[tool output truncated for memory safety]"
+      const safeData = result.data.length > 3000
+        ? result.data.slice(0, 3000) + "\n...[tool output truncated for memory safety]"
         : result.data;
 
-      toolResults.push({
+      const resultBlock: Record<string, unknown> = {
         type: "tool_result",
         tool_use_id: block.id,
         content: safeData,
         is_error: !result.success,
-      });
+      };
+      // Strip empty/null fields before pushing to messages to reduce memory footprint
+      for (const key of Object.keys(resultBlock)) {
+        const val = resultBlock[key];
+        if (val === null || val === undefined || val === "") {
+          delete resultBlock[key];
+        }
+      }
+
+      toolResults.push(resultBlock as ToolResultBlock);
     }
 
     messages.push({ role: "user" as const, content: toolResults });

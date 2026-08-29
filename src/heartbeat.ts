@@ -140,7 +140,7 @@ export function createHeartbeat(
     const full: ActivityEvent = { ...event, timestamp: Date.now() };
     state.events.push(full);
     if (state.events.length > 100) {
-      state.events = state.events.slice(-100);
+      state.events = state.events.slice(-50);
     }
     dbRecordEvent(full);
     for (const fn of listeners) fn(full);
@@ -527,6 +527,18 @@ export function createHeartbeat(
       const isTerminal = TERMINAL_STATUSES.has(task.status) || statusStr === "completed" || statusStr === "failed" || statusStr === "skipped";
       const taskTime = task.quotedAt ?? task.acceptedAt ?? task.submittedAt ?? state.startedAt;
       if (isTerminal || (!processing.has(id) && now - taskTime > TASK_EXPIRY_MS)) {
+        state.activeTasks.delete(id);
+        processedVersions.delete(id);
+        taskRetryAfter.delete(id);
+        taskRetryCounts.delete(id);
+      }
+    }
+
+    // Memory pressure guard: prune oldest entries when activeTasks Map grows too large.
+    // These tasks are already persisted in the DB, so it's safe to drop them from memory.
+    if (state.activeTasks.size > 100) {
+      const idsToPrune = [...state.activeTasks.keys()].slice(0, 20);
+      for (const id of idsToPrune) {
         state.activeTasks.delete(id);
         processedVersions.delete(id);
         taskRetryAfter.delete(id);

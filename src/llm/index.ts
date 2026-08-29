@@ -269,7 +269,8 @@ function createOpenAICompatibleProvider(
         const body: Record<string, unknown> = {
           model: currentModel,
           max_tokens: 4096,
-          messages: toOpenAIMessages(messages),
+          // Keep only last 20 half-turns (10 full turns) to prevent unbounded memory growth
+          messages: toOpenAIMessages(messages).slice(-20),
         };
 
         if (tools && tools.length > 0) {
@@ -299,7 +300,7 @@ function createOpenAICompatibleProvider(
           if (!res.ok) {
             const fullErrText = await res.text();
             // Cap error string length to prevent memory buffer bloat during retry sequences
-            const errText = fullErrText.length > 500 ? fullErrText.slice(0, 500) + "... [truncated]" : fullErrText;
+            const errText = fullErrText.length > 200 ? fullErrText.slice(0, 200) + "... [truncated]" : fullErrText;
             
             // Autonomously handle 401 Unauthorized / Invalid API Key
             if (res.status === 401) {
