@@ -98,7 +98,7 @@ export async function runAgentLoop(
         }
       }
 
-      toolResults.push(resultBlock as ToolResultBlock);
+      toolResults.push(resultBlock as unknown as ToolResultBlock);
     }
 
     messages.push({ role: "user" as const, content: toolResults });

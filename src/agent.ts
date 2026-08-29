@@ -136,7 +136,10 @@ export async function startAgent(): Promise<http.Server> {
 }
 
 function startKeepAlive() {
-  const externalUrl = process.env.RENDER_EXTERNAL_URL || process.env.PUBLIC_URL || "https://agentclaw-cayj.onrender.com";
+    const railwayUrl = process.env.RAILWAY_PUBLIC_DOMAIN 
+    ? (process.env.RAILWAY_PUBLIC_DOMAIN.startsWith("http") ? process.env.RAILWAY_PUBLIC_DOMAIN : `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`) 
+    : (process.env.RAILWAY_STATIC_URL ? (process.env.RAILWAY_STATIC_URL.startsWith("http") ? process.env.RAILWAY_STATIC_URL : `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`) : null);
+  const externalUrl = process.env.RENDER_EXTERNAL_URL || process.env.PUBLIC_URL || railwayUrl || `http://localhost:${PORT}`;
   const pingIntervalMs = 8 * 60 * 1000; // Ping every 8 minutes (Render sleeps at 15m)
 
   console.log(`[Keep-Alive] 📡 24/7 Cloud Keep-Alive Pinger active (${externalUrl})`);
@@ -949,7 +952,7 @@ async function handleEthPrice(res: http.ServerResponse) {
     const now = Date.now();
     if (!ethPriceCache || now - ethPriceCache.fetchedAt > ETH_PRICE_CACHE_TTL) {
       const resp = await fetch(
-        "https://min-api.cryptocompare.com/data/price?fsym=ETH&tsyms=USD",
+        "`https://${process.env.RAILWAY_PUBLIC_DOMAIN}`min-api.cryptocompare.com/data/price?fsym=ETH&tsyms=USD",
       );
       const data = (await resp.json()) as { USD?: number };
       if (!data.USD) {
