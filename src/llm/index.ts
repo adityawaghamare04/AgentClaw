@@ -175,6 +175,11 @@ class RateLimiter {
   async acquire(): Promise<void> {
     // Wait until we're strictly under the concurrency cap
     while (this.activeCount >= this.maxConcurrent) {
+      // Strict cap to prevent request storms from exhausting heap during
+      // cascade failures (unbounded queue growth was a major OOM contributor).
+      if (this.queue.length > 50) {
+        throw new Error("Rate limiter queue overflow");
+      }
       await new Promise<void>((resolve) => this.queue.push({ resolve }));
     }
 
@@ -258,6 +263,9 @@ function createOpenAICompatibleProvider(
       const limiter = isGemini ? geminiLimiter : isGroq ? groqLimiter : defaultLimiter;
 
       let lastError: Error | null = null;
+      // Explicitly null out on entry to hint GC that any prior retry-loop
+      // error objects from earlier calls on this closure are no longer referenced.
+      lastError = null;
 
       // CIRCUIT BREAKER: Skip this provider entirely when all API keys are exhausted.
       // Prevents the retry storm (100+ failed calls/min) that causes heap OOM.
@@ -301,9 +309,13 @@ function createOpenAICompatibleProvider(
           }
 
           if (!res.ok) {
-            const fullErrText = await res.text();
-            // Cap error string length to prevent memory buffer bloat during retry sequences
-            const errText = fullErrText.length > 200 ? fullErrText.slice(0, 200) + "... [truncated]" : fullErrText;
+            // Read only what we need — cap error string length aggressively to prevent
+            // memory buffer bloat during cascade retry storms (raw error bodies can be MBs).
+            let rawErrText: string | undefined = await res.text();
+            const errText =
+              rawErrText.length > 200 ? rawErrText.slice(0, 200) + "... [truncated]" : rawErrText;
+            // Drop reference to the untruncated string immediately so GC can reclaim it.
+            rawErrText = undefined;
             
             // Autonomously handle 401 Unauthorized / Invalid API Key
             if (res.status === 401) {
@@ -365,8 +377,10 @@ function createOpenAICompatibleProvider(
                 `[LLM Router Warning] ${currentModel} returned ${res.status}. Autonomously cascading to: ${modelQueue[i + 1]}`,
               );
               if (res.status === 429) {
-                // Short jittered delay (1500ms) to allow LLM rate-limit bucket to refill
-                await new Promise((r) => setTimeout(r, 1500 + Math.random() * 500));
+                // Short jittered delay to allow LLM rate-limit bucket to refill without
+                // letting requests pile up in memory during quota-exhaustion cascades.
+                const delayMs = Math.min(300, 100 + Math.random() * 200);
+                await new Promise((r) => setTimeout(r, delayMs));
               }
               continue;
             }
@@ -446,8 +460,18 @@ function createOpenAICompatibleProvider(
         } catch (err: any) {
           lastError = err;
           if (i < modelQueue.length - 1) {
-            console.warn(`[LLM Router Error] ${currentModel} failed (${err.message}). Switching to fallback: ${modelQueue[i + 1]}`);
-            if (err?.message?.includes("fetch failed") || err?.name === "TimeoutError" || err?.name === "AbortError") { await new Promise((r) => setTimeout(r, 1000)); }
+            // Truncate error message to prevent buffer bloat from noisy fetch/network errors
+            const shortMsg =
+              typeof err?.message === "string" && err.message.length > 200
+                ? err.message.slice(0, 200) + "... [truncated]"
+                : err?.message;
+            console.warn(`[LLM Router Error] ${currentModel} failed (${shortMsg}). Switching to fallback: ${modelQueue[i + 1]}`);
+            if (err?.message?.includes("fetch failed") || err?.name === "TimeoutError" || err?.name === "AbortError") {
+              // Short delay to avoid hammering the network during cascade storms,
+              // without letting requests queue up in memory.
+              const delayMs = Math.min(300, 100 + Math.random() * 200);
+              await new Promise((r) => setTimeout(r, delayMs));
+            }
           }
         }
       }
