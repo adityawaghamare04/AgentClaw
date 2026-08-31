@@ -128,10 +128,6 @@ function toOpenAIMessages(messages: LLMMessage[]): unknown[] {
                 thought_signature: thoughtSig,
               },
               thought_signature: thoughtSig,
-              extra_content: {
-                thought_signature: thoughtSig,
-                google: { thought_signature: thoughtSig },
-              },
             };
           });
 
@@ -249,12 +245,10 @@ function createOpenAICompatibleProvider(
         headers["User-Agent"] = "AgentClaw/1.0";
       }
 
-      // Use models that WORK with OpenAI-compatible endpoint + tool calling
-      // gemini-2.5-flash and gemini-3.5-flash-lite are deprecated/removed by Google
-      // gemini-3.6-flash is the recommended replacement model
+      // Valid production Google Gemini models supporting OpenAI tool calling
       const GEMINI_MODEL_CASCADE = process.env.GEMINI_MODELS
         ? process.env.GEMINI_MODELS.split(",").map((m) => m.trim())
-        : ["gemini-3.6-flash", "gemini-3.5-flash"];
+        : ["gemini-2.0-flash", "gemini-1.5-flash"];
       const GROQ_MODEL_CASCADE = process.env.GROQ_MODELS
         ? process.env.GROQ_MODELS.split(",").map((m) => m.trim())
         : ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.6-27b"];
@@ -526,7 +520,7 @@ export function createLLMProvider(config: LLMConfig): LLMProvider {
 
   // 1. Primary: Google Gemini Provider (if any key exists)
   if (keyManager.hasKeys("gemini")) {
-    const geminiModel = "gemini-3.6-flash"; // Recommended replacement for deprecated Gemini models
+    const geminiModel = "gemini-2.0-flash";
     const geminiConfig: LLMConfig = {
       ...config,
       provider: "gemini",

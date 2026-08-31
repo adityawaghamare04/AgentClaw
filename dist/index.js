@@ -1642,9 +1642,7 @@ var AutonomousModelAdapter = class {
     console.warn(
       `\u{1F916} [Autonomous Model Adaptation] Blacklisting model '${model}' (HTTP ${httpStatus}: ${errText.slice(0, 80)}...).`
     );
-    if (httpStatus === 404 || httpStatus === 410) {
-      this.blacklisted.add(model);
-    }
+    this.blacklisted.add(model);
     const healthy = this.getHealthyFreeModels();
     const newPrimary = healthy[0] || DEFAULT_FREE_MODELS[0];
     if (this.activePrimaryModel === model || this.blacklisted.has(this.activePrimaryModel)) {
@@ -1747,11 +1745,7 @@ function toOpenAIMessages(messages) {
             arguments: JSON.stringify(b.input),
             thought_signature: thoughtSig
           },
-          thought_signature: thoughtSig,
-          extra_content: {
-            thought_signature: thoughtSig,
-            google: { thought_signature: thoughtSig }
-          }
+          thought_signature: thoughtSig
         };
       });
       return {
@@ -1827,7 +1821,7 @@ function createOpenAICompatibleProvider(config, baseUrl) {
         headers["ngrok-skip-browser-warning"] = "true";
         headers["User-Agent"] = "AgentClaw/1.0";
       }
-      const GEMINI_MODEL_CASCADE = process.env.GEMINI_MODELS ? process.env.GEMINI_MODELS.split(",").map((m) => m.trim()) : ["gemini-3.6-flash", "gemini-3.5-flash"];
+      const GEMINI_MODEL_CASCADE = process.env.GEMINI_MODELS ? process.env.GEMINI_MODELS.split(",").map((m) => m.trim()) : ["gemini-2.0-flash", "gemini-1.5-flash"];
       const GROQ_MODEL_CASCADE = process.env.GROQ_MODELS ? process.env.GROQ_MODELS.split(",").map((m) => m.trim()) : ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.6-27b"];
       const modelQueue = isOpenRouter ? autonomousAdapter.getModelQueue(config.model) : isGemini ? GEMINI_MODEL_CASCADE : isGroq ? GROQ_MODEL_CASCADE : [config.model];
       const limiter = isGemini ? geminiLimiter : isGroq ? groqLimiter : defaultLimiter;
@@ -2006,7 +2000,7 @@ function createLLMProvider(config) {
   const cascadeList = [];
   keyManager.loadKeysFromEnv();
   if (keyManager.hasKeys("gemini")) {
-    const geminiModel = "gemini-3.6-flash";
+    const geminiModel = "gemini-2.0-flash";
     const geminiConfig = {
       ...config,
       provider: "gemini",
