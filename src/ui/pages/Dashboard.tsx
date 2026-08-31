@@ -232,6 +232,15 @@ export function Dashboard() {
         </div>
         <div className="flex items-center gap-3">
           {toggleError && <span className="text-xs text-red-400 font-mono">{toggleError}</span>}
+          <a
+            href="https://www.kaggle.com/code"
+            target="_blank"
+            rel="noreferrer"
+            className="px-4 py-2 rounded-md text-sm font-medium text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 transition-colors flex items-center gap-1.5 font-mono shadow-sm"
+            title="Open Kaggle Notebook to Restart 12-Hour Free GPU Session"
+          >
+            <span>⚡ Kaggle GPU Session</span>
+          </a>
           <button
             onClick={() => void toggleAgent()}
             className={`px-5 py-2 rounded-md text-sm font-medium transition-colors ${

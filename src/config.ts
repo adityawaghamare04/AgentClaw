@@ -4,7 +4,7 @@ import path from "node:path";
 import os from "node:os";
 
 export interface LLMConfig {
-  provider: "anthropic" | "openai" | "openrouter" | "gemini" | "ollama" | "local" | "lmstudio" | "groq";
+  provider: "anthropic" | "openai" | "openrouter" | "gemini" | "ollama" | "local" | "lmstudio" | "groq" | "custom";
   model: string;
   apiKey: string;
   baseUrl?: string;
@@ -104,6 +104,7 @@ export function getApiKeyFromEnv(provider: LLMConfig["provider"]): string {
     case "groq": return process.env.GROQ_API_KEYS || process.env.GROQ_API_KEY || "";
     case "ollama":
     case "local":
+    case "custom":
     case "lmstudio": return "ollama";
     default: return "";
   }
@@ -156,6 +157,7 @@ export function loadConfig(): CashClawConfig | null {
     openai: "gpt-4o",
     ollama: "qwen2.5-coder",
     local: "qwen2.5-coder",
+    custom: "qwen2.5-coder:14b-instruct-q4_K_M",
     lmstudio: "qwen2.5-coder",
   };
 
@@ -232,6 +234,7 @@ export function initConfig(opts: {
     gemini: "gemini-3.5-flash-lite",
     ollama: "qwen2.5-coder",
     local: "qwen2.5-coder",
+    custom: "qwen2.5-coder:14b-instruct-q4_K_M",
     lmstudio: "qwen2.5-coder",
     groq: "openai/gpt-oss-120b",
   };

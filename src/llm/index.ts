@@ -240,6 +240,11 @@ function createOpenAICompatibleProvider(
         headers["X-Title"] = "AgentClaw Engine";
       }
 
+      if (baseUrl.includes("ngrok")) {
+        headers["ngrok-skip-browser-warning"] = "true";
+        headers["User-Agent"] = "AgentClaw/1.0";
+      }
+
       // Use models that WORK with OpenAI-compatible endpoint + tool calling
       // gemini-2.5-flash and gemini-3.5-flash-lite are deprecated/removed by Google
       // gemini-3.6-flash is the recommended replacement model
@@ -563,17 +568,19 @@ export function createLLMProvider(config: LLMConfig): LLMProvider {
     });
   }
 
-  // 4. Quaternary: Local Ollama (if running)
-  if (process.env.OLLAMA_BASE_URL || config.provider === "ollama" || config.provider === "local") {
-    const baseUrl = process.env.OLLAMA_BASE_URL || config.baseUrl || "http://localhost:11434/v1";
+  // 4. Custom / Kaggle / Colab Local LLM Provider
+  const customBaseUrl = process.env.CUSTOM_LLM_BASE_URL || process.env.LOCAL_LLM_BASE_URL || process.env.OLLAMA_BASE_URL;
+  const customModel = process.env.CUSTOM_LLM_MODEL || process.env.LOCAL_LLM_MODEL || config.model || "qwen2.5-coder:14b-instruct-q4_K_M";
+  if (customBaseUrl || config.provider === "ollama" || config.provider === "local" || config.provider === "custom") {
+    const baseUrl = customBaseUrl || config.baseUrl || "http://localhost:11434/v1";
     const localConfig: LLMConfig = {
       ...config,
-      provider: "ollama",
-      apiKey: config.apiKey || "ollama",
-      model: config.model || "qwen2.5-coder",
+      provider: "custom",
+      apiKey: config.apiKey || "local",
+      model: customModel,
     };
     cascadeList.push({
-      name: `Local Ollama (${localConfig.model})`,
+      name: `Kaggle/Custom GPU LLM (${customModel})`,
       provider: createOpenAICompatibleProvider(localConfig, baseUrl),
     });
   }
