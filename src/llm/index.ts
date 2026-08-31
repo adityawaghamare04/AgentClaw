@@ -117,17 +117,17 @@ function toOpenAIMessages(messages: LLMMessage[]): unknown[] {
           )
           .map((b) => {
             const extra = (b.extra_content || {}) as Record<string, unknown>;
-            const thoughtSig = extra.thought_signature || (extra.google as any)?.thought_signature;
+            // Gemini 3.x requires thought_signature to be present on function calls
+            const thoughtSig = extra.thought_signature || (extra.google as any)?.thought_signature || "thought_sig_gemini_bypass";
             return {
               id: b.id,
               type: "function",
               function: {
                 name: b.name,
                 arguments: JSON.stringify(b.input),
+                thought_signature: thoughtSig,
               },
-              // Gemini 3.x requires thought_signature at the tool_call root level
-              // (sibling to id/type/function), NOT nested inside function{}
-              ...(thoughtSig ? { thought_signature: thoughtSig } : {}),
+              thought_signature: thoughtSig,
             };
           });
 
