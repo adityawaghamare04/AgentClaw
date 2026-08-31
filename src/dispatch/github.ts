@@ -71,10 +71,40 @@ export async function dispatchGitHubSolution(
 
         const treasuryAddress = process.env.TREASURY_ADDRESS || "0xb61dBcdBc3407F71EaCb64D4CBFAcf9FFfe2415C";
         const signature = `\n\n---\n*Submitted by Aditya Waghamare*\n💰 **Payout Address (Base L2 / EVM):** \`${treasuryAddress}\``;
-        const filePath = `SOLUTION_ISSUE_${issueNumber}.md`;
-        const fileContentBase64 = Buffer.from(
-          `# Solution for Issue #${issueNumber}\n\n${solutionText}${signature}`
-        ).toString("base64");
+        // Detect if solution targets an existing file (e.g., README.md, src/index.js, etc.)
+        let targetFilePath = `SOLUTION_ISSUE_${issueNumber}.md`;
+        let codeContentToCommit = `# Solution for Issue #${issueNumber}\n\n${solutionText}${signature}`;
+
+        // Attempt to extract target file path from solution output
+        const targetMatch = solutionText.match(/(?:File|Target File|Path|Modifying|Filename):\s*`?([a-zA-Z0-9_\-\.\/]+)`?/i)
+          || solutionText.match(/```(?:\w+)?\s+(?:file=|path=)?["']?([a-zA-Z0-9_\-\.\/]+\.[a-zA-Z0-9]+)["']?/i)
+          || solutionText.match(/(?:in|update|modify|edit)\s+`([a-zA-Z0-9_\-\.\/]+\.[a-zA-Z0-9]+)`/i);
+
+        if (targetMatch && targetMatch[1]) {
+          targetFilePath = targetMatch[1].replace(/\\/g, "/");
+          // Clean code content if code block exists
+          const codeBlockMatch = solutionText.match(/```(?:\w+)?\n([\s\S]*?)\n```/);
+          if (codeBlockMatch && codeBlockMatch[1]) {
+            codeContentToCommit = codeBlockMatch[1];
+          }
+        }
+
+        const fileContentBase64 = Buffer.from(codeContentToCommit).toString("base64");
+
+        // Helper to get existing file SHA if updating existing file in target repo
+        const getFileSha = async (repoOwner: string, repoName: string, path: string, refBranch?: string): Promise<string | undefined> => {
+          try {
+            const url = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${path}${refBranch ? `?ref=${refBranch}` : ""}`;
+            const res = await fetch(url, { headers: authHeaders });
+            if (res.ok) {
+              const data = (await res.json()) as any;
+              return data.sha;
+            }
+          } catch {
+            return undefined;
+          }
+          return undefined;
+        };
 
         let prCreated = false;
 
@@ -92,22 +122,28 @@ export async function dispatchGitHubSolution(
         );
 
         if (newRefRes.ok) {
-          // Direct commit & PR
-          await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`, {
+          // Fetch existing file SHA if updating existing file
+          const existingSha = await getFileSha(owner, repo, targetFilePath, branchName);
+
+          // Direct commit to real codebase file & PR
+          const commitPayload: Record<string, unknown> = {
+            message: `fix: update ${targetFilePath} for issue #${issueNumber}`,
+            content: fileContentBase64,
+            branch: branchName,
+          };
+          if (existingSha) commitPayload.sha = existingSha;
+
+          await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${targetFilePath}`, {
             method: "PUT",
             headers: authHeaders,
-            body: JSON.stringify({
-              message: `fix: solution for issue #${issueNumber}`,
-              content: fileContentBase64,
-              branch: branchName,
-            }),
+            body: JSON.stringify(commitPayload),
           });
 
           const prRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls`, {
             method: "POST",
             headers: authHeaders,
             body: JSON.stringify({
-              title: `fix: solution for issue #${issueNumber}`,
+              title: `fix: update ${targetFilePath} for issue #${issueNumber}`,
               head: branchName,
               base: defaultBranch,
               body: `### Fix & Proposed Solution\n\nCloses #${issueNumber}\n\n${solutionText}${signature}`,
@@ -165,17 +201,21 @@ export async function dispatchGitHubSolution(
                 );
 
                 if (forkBranchRes.ok) {
-                  // 5. Commit patch to fork branch
+                  // 5. Commit patch to fork branch (target real code file directly)
+                  const forkFileSha = await getFileSha(authenticatedUser, repo, targetFilePath, branchName);
+                  const forkCommitPayload: Record<string, unknown> = {
+                    message: `fix: update ${targetFilePath} for issue #${issueNumber}`,
+                    content: fileContentBase64,
+                    branch: branchName,
+                  };
+                  if (forkFileSha) forkCommitPayload.sha = forkFileSha;
+
                   await fetch(
-                    `https://api.github.com/repos/${authenticatedUser}/${repo}/contents/${filePath}`,
+                    `https://api.github.com/repos/${authenticatedUser}/${repo}/contents/${targetFilePath}`,
                     {
                       method: "PUT",
                       headers: authHeaders,
-                      body: JSON.stringify({
-                        message: `fix: solution for issue #${issueNumber}`,
-                        content: fileContentBase64,
-                        branch: branchName,
-                      }),
+                      body: JSON.stringify(forkCommitPayload),
                     }
                   );
 
@@ -186,7 +226,7 @@ export async function dispatchGitHubSolution(
                       method: "POST",
                       headers: authHeaders,
                       body: JSON.stringify({
-                        title: `fix: solution for issue #${issueNumber}`,
+                        title: `fix: update ${targetFilePath} for issue #${issueNumber}`,
                         head: `${authenticatedUser}:${branchName}`,
                         base: defaultBranch,
                         body: `### Fix & Proposed Solution\n\nCloses #${issueNumber}\n\n${solutionText}${signature}`,
