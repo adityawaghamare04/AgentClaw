@@ -128,6 +128,10 @@ function toOpenAIMessages(messages: LLMMessage[]): unknown[] {
                 thought_signature: thoughtSig,
               },
               thought_signature: thoughtSig,
+              extra_content: {
+                thought_signature: thoughtSig,
+                google: { thought_signature: thoughtSig },
+              },
             };
           });
 

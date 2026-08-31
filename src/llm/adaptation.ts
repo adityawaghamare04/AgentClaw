@@ -571,7 +571,9 @@ class AutonomousModelAdapter {
       `🤖 [Autonomous Model Adaptation] Blacklisting model '${model}' (HTTP ${httpStatus}: ${errText.slice(0, 80)}...).`
     );
 
-    this.blacklisted.add(model);
+    if (httpStatus === 404 || httpStatus === 410) {
+      this.blacklisted.add(model);
+    }
 
     // Pick best healthy model as new primary
     const healthy = this.getHealthyFreeModels();

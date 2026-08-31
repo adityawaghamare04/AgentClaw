@@ -1642,7 +1642,9 @@ var AutonomousModelAdapter = class {
     console.warn(
       `\u{1F916} [Autonomous Model Adaptation] Blacklisting model '${model}' (HTTP ${httpStatus}: ${errText.slice(0, 80)}...).`
     );
-    this.blacklisted.add(model);
+    if (httpStatus === 404 || httpStatus === 410) {
+      this.blacklisted.add(model);
+    }
     const healthy = this.getHealthyFreeModels();
     const newPrimary = healthy[0] || DEFAULT_FREE_MODELS[0];
     if (this.activePrimaryModel === model || this.blacklisted.has(this.activePrimaryModel)) {
@@ -1745,7 +1747,11 @@ function toOpenAIMessages(messages) {
             arguments: JSON.stringify(b.input),
             thought_signature: thoughtSig
           },
-          thought_signature: thoughtSig
+          thought_signature: thoughtSig,
+          extra_content: {
+            thought_signature: thoughtSig,
+            google: { thought_signature: thoughtSig }
+          }
         };
       });
       return {
