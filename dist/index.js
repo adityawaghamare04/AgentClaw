@@ -2460,7 +2460,7 @@ function addTaskToInbox(task) {
   }
   if (!inMemoryTasks.some((t) => t.id === task.id)) {
     inMemoryTasks.push(task);
-    if (inMemoryTasks.length > 500) {
+    if (inMemoryTasks.length > 30) {
       const terminalIdx = inMemoryTasks.findIndex(
         (t) => ["completed", "declined", "cancelled", "expired", "submitted", "quoted"].includes(t.status)
       );

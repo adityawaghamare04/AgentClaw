@@ -142,8 +142,8 @@ export function addTaskToInbox(task: Task): void {
 
   if (!inMemoryTasks.some((t) => t.id === task.id)) {
     inMemoryTasks.push(task);
-    // Queue Throttling: Cap task inbox at 500 items to prevent Node.js heap overflow
-    if (inMemoryTasks.length > 500) {
+    // Queue Throttling: Cap task inbox at 30 items to prevent Node.js heap overflow
+    if (inMemoryTasks.length > 30) {
       // Remove oldest terminal/completed tasks first before evicting pending ones
       const terminalIdx = inMemoryTasks.findIndex((t) =>
         ["completed", "declined", "cancelled", "expired", "submitted", "quoted"].includes(t.status)

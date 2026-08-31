@@ -1,10 +1,10 @@
 [variables]
 NODE_ENV = "production"
-NODE_OPTIONS = "--max-old-space-size=384"
+NODE_OPTIONS = "--max-old-space-size=350"
 PORT = "3777"
 
 [phases.build]
-cmds = ["NODE_OPTIONS='--max-old-space-size=450' npm run build:all"]
+cmds = []
 
 [start]
-cmd = "node --expose-gc --max-old-space-size=384 dist/index.js"
+cmd = "node --expose-gc --max-old-space-size=350 dist/index.js"
