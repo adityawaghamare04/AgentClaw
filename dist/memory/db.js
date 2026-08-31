@@ -310,6 +310,9 @@ sqlite.serialize(() => {
   sqlite.run("PRAGMA journal_mode = WAL;");
   sqlite.run("PRAGMA synchronous = NORMAL;");
   sqlite.run("PRAGMA busy_timeout = 5000;");
+  sqlite.run("PRAGMA cache_size = -2000;");
+  sqlite.run("PRAGMA mmap_size = 0;");
+  sqlite.run("PRAGMA temp_store = MEMORY;");
   sqlite.run(`
     CREATE TABLE IF NOT EXISTS tasks (
       id TEXT PRIMARY KEY,
