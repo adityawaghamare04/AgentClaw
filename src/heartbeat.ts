@@ -108,7 +108,7 @@ export function createHeartbeat(
 
   function hydrateStateFromDb() {
     try {
-      const storedTasks = dbGetAllTasks(500);
+      const storedTasks = dbGetAllTasks(100);
       for (const st of storedTasks) {
         const isTerminal = TERMINAL_STATUSES.has(st.status) || st.status === "completed" || st.status === "failed" || st.status === "skipped";
         if (!isTerminal && !state.activeTasks.has(st.id)) {
@@ -118,7 +118,7 @@ export function createHeartbeat(
             task: st.title,
             status: st.status as any,
             quotedPriceWei: st.earnedUsd ? String(st.earnedUsd) : undefined,
-            result: st.solutionSnippet,
+            result: st.solutionSnippet ? st.solutionSnippet.slice(0, 500) : undefined,
             clientAddress: st.source,
           });
         }
@@ -126,7 +126,7 @@ export function createHeartbeat(
     } catch {}
 
     try {
-      const storedEvents = dbGetAllEvents(100);
+      const storedEvents = dbGetAllEvents(30);
       if (storedEvents && storedEvents.length > 0) {
         state.events = storedEvents as ActivityEvent[];
       }
@@ -139,8 +139,8 @@ export function createHeartbeat(
   function emit(event: Omit<ActivityEvent, "timestamp">) {
     const full: ActivityEvent = { ...event, timestamp: Date.now() };
     state.events.push(full);
-    if (state.events.length > 100) {
-      state.events = state.events.slice(-50);
+    if (state.events.length > 30) {
+      state.events = state.events.slice(-20);
     }
     dbRecordEvent(full);
     for (const fn of listeners) fn(full);
