@@ -9,7 +9,7 @@ node_modules/
 .yarn/unplugged/
 
 # 🔨 Build & Compilation Outputs
-dist/
+# dist/ (tracked for zero-memory Railway deployment)
 build/
 out/
 *.tsbuildinfo

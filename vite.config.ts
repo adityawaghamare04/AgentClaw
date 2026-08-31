@@ -8,6 +8,10 @@ export default defineConfig({
   build: {
     outDir: "../../dist/ui",
     emptyOutDir: true,
+    sourcemap: false,
+    cssMinify: true,
+    minify: "esbuild",
+    chunkSizeWarningLimit: 1000,
   },
   server: {
     proxy: {

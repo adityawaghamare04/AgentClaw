@@ -3,8 +3,8 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Give build step (vite/tsup) 2GB memory headroom to prevent build-time OOM
-ENV NODE_OPTIONS="--max-old-space-size=2048"
+# Give build step 450MB memory ceiling to prevent build-time OOM on Railway 512MB RAM containers
+ENV NODE_OPTIONS="--max-old-space-size=450"
 
 # Copy package manifests and install dependencies
 COPY package*.json ./
@@ -21,7 +21,6 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV PORT=3777
-# Heap ceiling set to 384MB so V8 GC runs before Railway 512MB container limit is exceeded by RSS overhead
 ENV NODE_OPTIONS="--max-old-space-size=384"
 
 COPY package*.json ./
@@ -33,5 +32,5 @@ COPY --from=builder /app/dist ./dist
 # Expose dashboard port
 EXPOSE 3777
 
-# Start CashClaw agent
-CMD ["node", "--max-old-space-size=384", "dist/index.js"]
+# Start CashClaw agent with GC enabled and 384MB heap limit
+CMD ["node", "--expose-gc", "--max-old-space-size=384", "dist/index.js"]
