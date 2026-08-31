@@ -285,11 +285,13 @@ const cache = {
   meta: { totalEarningsUsd: 0, totalTasksExecuted: 0, totalTasksDiscovered: 0 },
 };
 
-// Enable WAL mode, create tables & perform legacy JSON migration sequentially
 sqlite.serialize(() => {
   sqlite.run("PRAGMA journal_mode = WAL;");
   sqlite.run("PRAGMA synchronous = NORMAL;");
   sqlite.run("PRAGMA busy_timeout = 5000;");
+  sqlite.run("PRAGMA cache_size = -2000;"); // Cap SQLite C page cache to 2MB to prevent RSS memory expansion
+  sqlite.run("PRAGMA mmap_size = 0;");       // Disable mmap memory allocation bloat in RSS
+  sqlite.run("PRAGMA temp_store = MEMORY;");
 
   sqlite.run(`
     CREATE TABLE IF NOT EXISTS tasks (

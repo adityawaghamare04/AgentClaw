@@ -21,7 +21,8 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV PORT=3777
-ENV NODE_OPTIONS="--max-old-space-size=320"
+ENV NODE_OPTIONS="--max-old-space-size=256"
+ENV UV_THREADPOOL_SIZE=4
 
 COPY package*.json ./
 RUN npm ci --only=production
@@ -32,5 +33,5 @@ COPY --from=builder /app/dist ./dist
 # Expose dashboard port
 EXPOSE 3777
 
-# Start CashClaw agent with GC enabled and 320MB heap limit
-CMD ["node", "--expose-gc", "--max-old-space-size=320", "dist/index.js"]
+# Start CashClaw agent with GC enabled and 256MB heap limit
+CMD ["node", "--expose-gc", "--max-old-space-size=256", "dist/index.js"]

@@ -161,11 +161,11 @@ function startKeepAlive() {
     const mem = process.memoryUsage();
     const heapMb = Math.round(mem.heapUsed / 1024 / 1024);
     const rssMb = Math.round(mem.rss / 1024 / 1024);
-    if ((heapMb > 250 || rssMb > 380) && typeof global.gc === "function") {
+    if ((heapMb > 160 || rssMb > 280) && typeof global.gc === "function") {
       console.log(`[Memory Guard] 🧹 High RAM usage (${heapMb}MB heap / ${rssMb}MB RSS). Invoking Garbage Collection...`);
       global.gc();
     }
-  }, 30 * 1000);
+  }, 15 * 1000);
 }
 
 function createServer(ctx: ServerContext): http.Server {
